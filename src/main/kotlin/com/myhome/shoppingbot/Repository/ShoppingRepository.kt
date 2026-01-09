@@ -5,4 +5,9 @@ import org.springframework.data.repository.CrudRepository
 import org.springframework.stereotype.Repository
 
 @Repository
-interface ShoppingRepository : CrudRepository<ShoppingItem, Long>
+interface ShoppingRepository : CrudRepository<ShoppingItem, Long> {
+
+    fun findByNameIgnoreCase(name: String): ShoppingItem?
+
+    fun deleteByNameIgnoreCase(name: String)
+}

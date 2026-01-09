@@ -15,6 +15,11 @@ class ShoppingService (private val repository: ShoppingRepository) {
         return when {
             input == "list" || input == "רשימה" -> formatList()
             input == "clear" || input == "נקה" -> clearList()
+            input.startsWith("למחוק ") -> removeItem(body.substring(6).trim())
+            input.startsWith("מחק ") -> removeItem(body.substring(4).trim())
+            input.startsWith("הסר ") -> removeItem(body.substring(4).trim())
+            input.startsWith("קניתי ") -> removeItem(body.substring(6).trim())
+            input.startsWith("delete ") -> removeItem(body.substring(7).trim())
             else -> addItem(input, sender)
             }
         }
@@ -36,6 +41,16 @@ class ShoppingService (private val repository: ShoppingRepository) {
     private fun addItem(name: String, addedBy: String): String {
         repository.save(ShoppingItem(name = name, addedBy = addedBy))
         return "Added *$name* to the list. 📝"
+    }
+
+    private fun removeItem(itemName: String): String {
+        val name = itemName.trim()
+        val item = repository.findByNameIgnoreCase(name)
+        if (item == null) {
+            return "Item *$name* not found. \uD83E\uDD14"
+        }
+        repository.deleteByNameIgnoreCase(name)
+        return "Removed *$name* from the list. ✅"
     }
 
 }
