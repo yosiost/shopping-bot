@@ -5,9 +5,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
 @RestController
-@RequestMapping("/health")
-class HealthController {
-    @GetMapping
+class SystemController {
+    @GetMapping("/health")
     fun healthCheck(): String {
         return "Bot is awake and healthy!"
     }
