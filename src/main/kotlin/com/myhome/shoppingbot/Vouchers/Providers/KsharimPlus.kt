@@ -1,6 +1,7 @@
 package com.myhome.shoppingbot.Vouchers.Providers
 
 import com.myhome.shoppingbot.Vouchers.VoucherBalanceFetcher
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -9,6 +10,8 @@ import org.springframework.web.client.RestTemplate
 
 @Component
 class KsharimPlus (private val restTemplate: RestTemplate) : VoucherBalanceFetcher {
+    private val logger = LoggerFactory.getLogger(KsharimPlus::class.java)
+
     override fun supports(providerName: String) =
         providerName.equals("קשרים פלוס", true) || providerName.equals("KsharimPlus", true)
 
@@ -32,9 +35,12 @@ class KsharimPlus (private val restTemplate: RestTemplate) : VoucherBalanceFetch
             )
 
             val request = HttpEntity(body, headers)
+            logger.info("Fetching balance for card: $cardNum")
             val response = restTemplate.postForObject(url, request, Map::class.java)
-            (response?.get("Balance") as? Number)?.toDouble()
-                ?: (response?.get("balance") as? Number)?.toDouble()
+            logger.info("Full API Response from KsharimPlus: $response")
+            val balance = (response?.get("balance") as? Number)?.toDouble()
+            logger.info("Extracted balance: $balance")
+            balance
         } catch (e: Exception) {
             println("KsharimPlus Fetch Error: ${e.message}")
             null
