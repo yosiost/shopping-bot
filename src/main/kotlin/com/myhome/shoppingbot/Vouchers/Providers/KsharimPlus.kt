@@ -13,7 +13,7 @@ class KsharimPlus (private val restTemplate: RestTemplate) : VoucherBalanceFetch
     private val logger = LoggerFactory.getLogger(KsharimPlus::class.java)
 
     override fun supports(providerName: String) =
-        providerName.equals("קשרים פלוס", true) || providerName.equals("KsharimPlus", true)
+        providerName.equals("קשריםפלוס", true) || providerName.equals("KsharimPlus", true)
 
     override fun fetch(voucherNumber: String): Double? {
         return try {
