@@ -6,13 +6,27 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-class ShoppingService (private val repository: ShoppingRepository) {
+class ShoppingService (private val repository: ShoppingRepository, private val voucherService: VoucherService) {
 
     @Transactional
     fun processIncomingMessage(body: String, sender: String): String {
         val input = body.trim().lowercase()
 
         return when {
+            // voucher commands
+            input.startsWith("add voucher") || input.startsWith("הוסף שובר") ->
+                voucherService.addVoucher(body)
+            input == "vouchers" || input == "שוברים" ->
+                voucherService.getVouchers(null)
+            input.startsWith("get voucher ") || input.startsWith("שובר ") -> {
+                val provider = body.split(" ").last()
+                voucherService.getVouchers(provider)
+            }
+            // shopping list commands
+            input.startsWith("delete voucher") || input.startsWith("מחק שובר") -> {
+                val number = body.split(" ").last()
+                voucherService.deleteVoucher(number)
+            }
             input == "list" || input == "רשימה" -> formatList()
             input == "clear" || input == "נקה" -> clearList()
             input.startsWith("למחוק ") -> removeItem(body.substring(6).trim())
