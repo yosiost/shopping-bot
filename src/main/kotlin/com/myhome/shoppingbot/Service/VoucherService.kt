@@ -65,7 +65,7 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
             }
         }
 
-        return vouchers.joinToString("\n") {
+        return vouchers.joinToString("\n\n----------------\n\n") {
             "🔹 *${it.provider}*: ₪${it.balance} (Exp: ${it.expiryDate}) [${it.voucherNumber}]"
         }
     }
