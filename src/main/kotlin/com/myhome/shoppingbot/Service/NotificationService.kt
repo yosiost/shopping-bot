@@ -13,14 +13,20 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 @Service
-class NotificationService (private val voucherRepository: VoucherRepository) {
-    private val logger = LoggerFactory.getLogger(NotificationService::class.java)
+class NotificationService (
+    private val voucherRepository: VoucherRepository,
+    @Value("\${TWILIO_ACCOUNT_SID:MISSING_SID}")
+    private val accountSid: String,
 
-    @Value("\${twilio.accountsid}") private lateinit var accountsId: String
-    @Value("\${twilio.auth.token}") private lateinit var authToken: String
-    @Value("\${twilio.whatsapp.from}") private lateinit var fromNumber: String
-    @Value("\${notification.recipient}") private lateinit var recipientNumber: String
-    @Value("\${notification.recipient}") private lateinit var recipientConfig: String
+    @Value("\${TWILIO_AUTH_TOKEN:MISSING_TOKEN}")
+    private val authToken: String,
+
+    @Value("\${TWILIO_WHATSAPP_FROM:MISSING_FROM}")
+    private val fromNumber: String,
+
+    @Value("\${NOTIFICATION_RECIPIENT:MISSING_RECIPIENT}")
+    private val recipientConfig: String) {
+    private val logger = LoggerFactory.getLogger(NotificationService::class.java)
 
     @Scheduled(cron = "0 0 9 * * *")
     fun checkExpiringVouchers() {
@@ -51,7 +57,7 @@ class NotificationService (private val voucherRepository: VoucherRepository) {
 
     private fun sendWhatsappNotification(content: String) {
         try {
-            Twilio.init(accountsId, authToken)
+            Twilio.init(accountSid, authToken)
             val recipients = recipientConfig.split(",").map { it.trim() }
             recipients.forEach { number ->
                 Message.creator(
