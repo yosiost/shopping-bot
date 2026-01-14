@@ -51,7 +51,7 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
                     logger.info("No fetcher found for ${voucher.provider}")
                     return "No fetcher found for ${voucher.provider}"
                 }
-                val updatedBalance: Double? = fetcher?.fetch(voucher.voucherNumber)
+                val updatedBalance: Double? = fetcher?.fetch(voucher)
 
                 if (updatedBalance != null) {
                     logger.info("Updated balance for ${voucher.provider}: ${voucher.voucherNumber} to $updatedBalance")

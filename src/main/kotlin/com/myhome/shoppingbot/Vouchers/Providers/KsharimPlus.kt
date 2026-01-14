@@ -1,5 +1,6 @@
 package com.myhome.shoppingbot.Vouchers.Providers
 
+import com.myhome.shoppingbot.Data.Voucher
 import com.myhome.shoppingbot.Vouchers.VoucherBalanceFetcher
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpEntity
@@ -15,10 +16,10 @@ class KsharimPlus (private val restTemplate: RestTemplate) : VoucherBalanceFetch
     override fun supports(providerName: String) =
         providerName.equals("קשריםפלוס", true) || providerName.equals("KsharimPlus", true)
 
-    override fun fetch(voucherNumber: String): Double? {
+    override fun fetch(voucher: Voucher): Double? {
         return try {
             val url = "https://portal.ksharimplus.co.il/KsharimPlusWs/api/Codes/HistoryMultipass"
-            val parts = voucherNumber.split("-")
+            val parts = voucher.voucherNumber.split("-")
             if (parts.size < 2) return null
 
             val cardNum = parts[0]
