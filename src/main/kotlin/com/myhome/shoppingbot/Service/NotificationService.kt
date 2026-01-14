@@ -20,6 +20,7 @@ class NotificationService (private val voucherRepository: VoucherRepository) {
     @Value("\${twilio.auth.token}") private lateinit var authToken: String
     @Value("\${twilio.whatsapp.from}") private lateinit var fromNumber: String
     @Value("\${notification.recipient}") private lateinit var recipientNumber: String
+    @Value("\${notification.recipient}") private lateinit var recipientConfig: String
 
     @Scheduled(cron = "0 0 9 * * *")
     fun checkExpiringVouchers() {
@@ -51,12 +52,15 @@ class NotificationService (private val voucherRepository: VoucherRepository) {
     private fun sendWhatsappNotification(content: String) {
         try {
             Twilio.init(accountsId, authToken)
-            Message.creator(
-                PhoneNumber("whatsapp:$recipientNumber"),
-                PhoneNumber("whatsapp:$fromNumber"),
-                content
-            ).create()
-                logger.info("Expiry notification sent successfully")
+            val recipients = recipientConfig.split(",").map { it.trim() }
+            recipients.forEach { number ->
+                Message.creator(
+                    PhoneNumber("whatsapp:$number"),
+                    PhoneNumber("whatsapp:$fromNumber"),
+                    content
+                ).create()
+                logger.info("Expiry notification sent successfully to $number")
+            }
         } catch (e: Exception) {
             logger.error("Failed to send expiry notification: ${e.message}")
         }
