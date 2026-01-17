@@ -2,14 +2,12 @@ package com.myhome.shoppingbot.Vouchers.Providers
 
 import com.myhome.shoppingbot.Data.Voucher
 import com.myhome.shoppingbot.Vouchers.VoucherBalanceFetcher
+import java.net.URL
+import java.net.HttpURLConnection
+import java.nio.charset.Charset
 import org.slf4j.LoggerFactory
 import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
-import org.springframework.http.HttpEntity
-import org.springframework.http.HttpHeaders
-import org.springframework.http.MediaType
 import org.springframework.stereotype.Component
-import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.RestTemplate
 
 @Component
@@ -21,30 +19,29 @@ class Praxell (private val restTemplate: RestTemplate) : VoucherBalanceFetcher {
 
     override fun fetch(voucher: Voucher): Double? {
         return try {
-            val url = "https://www.praxellpayroll.com/cardbalance/giftcardGeneral.php"
-            val headers = HttpHeaders()
-            headers.contentType = MediaType.APPLICATION_FORM_URLENCODED
-            headers.set("User-Agent", "Mozilla/5.0")
+            val url = URL("https://www.praxellpayroll.com/cardbalance/giftcardGeneral.php")
+            val postData = "card=${voucher.voucherNumber}&g-recaptcha-response=".toByteArray(Charsets.UTF_8)
 
-            val map = LinkedMultiValueMap<String, String>()
-            map.add("card", voucher.voucherNumber)
-            map.add("g-recaptcha-response", "")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
 
-            val request = HttpEntity(map, headers)
+            conn.outputStream.use { os -> os.write(postData) }
 
-            val responseBytes = restTemplate.postForObject(url, request, ByteArray::class.java)
+            val responseText = conn.inputStream.bufferedReader(Charset.forName("Windows-1255")).use { it.readText() }
 
-            if (responseBytes == null) return null
-
-            val html = String(responseBytes, Charsets.UTF_8)
-            val doc: Document = Jsoup.parse(html)
+            val doc = Jsoup.parse(responseText)
 
             val balanceElement = doc.select("div.FieldTitle:contains(יתרה) ~ div.FieldValue").first()
             val balanceText = balanceElement?.text() ?: ""
 
             logger.info("Praxell Raw Text: $balanceText")
 
-            val cleanBalance = balanceText.replace("₪", "").trim()
+            val cleanBalance = balanceText.replace(Regex("[^0-9.]"), "").trim()
             cleanBalance.toDoubleOrNull()
 
         } catch (e: Exception) {
