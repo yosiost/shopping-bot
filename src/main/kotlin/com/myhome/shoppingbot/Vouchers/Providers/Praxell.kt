@@ -3,6 +3,8 @@ package com.myhome.shoppingbot.Vouchers.Providers
 import com.myhome.shoppingbot.Data.Voucher
 import com.myhome.shoppingbot.Vouchers.VoucherBalanceFetcher
 import org.slf4j.LoggerFactory
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -22,18 +24,22 @@ class Praxell (private val restTemplate: RestTemplate) : VoucherBalanceFetcher {
             val url = "https://www.praxellpayroll.com/cardbalance/giftcardGeneral.php"
             val headers = HttpHeaders()
             headers.contentType = MediaType.APPLICATION_FORM_URLENCODED
-            headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            headers.set("User-Agent", "Mozilla/5.0")
 
             val map = LinkedMultiValueMap<String, String>()
             map.add("card", voucher.voucherNumber)
-            map.add("g-recaptcha-response", "") // We leave this empty and hope for the best
+            map.add("g-recaptcha-response", "")
 
             val request = HttpEntity(map, headers)
 
-            val html = restTemplate.postForObject(url, request, String::class.java) ?: ""
-            val doc = org.jsoup.Jsoup.parse(html)
+            val responseBytes = restTemplate.postForObject(url, request, ByteArray::class.java)
 
-            val balanceElement = doc.select("div:contains(יתרה) + .FieldValue").first()
+            if (responseBytes == null) return null
+
+            val html = String(responseBytes, Charsets.UTF_8)
+            val doc: Document = Jsoup.parse(html)
+
+            val balanceElement = doc.select("div.FieldTitle:contains(יתרה) ~ div.FieldValue").first()
             val balanceText = balanceElement?.text() ?: ""
 
             logger.info("Praxell Raw Text: $balanceText")
