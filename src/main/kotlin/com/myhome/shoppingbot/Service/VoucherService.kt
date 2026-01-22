@@ -65,7 +65,12 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
             }
         }
 
-        return vouchers.joinToString("\n\n----------------\n\n") {
+        val sortedVouchers = vouchers.sortedWith(
+            compareBy<Voucher> { it.provider }
+                .thenBy { it.expiryDate }
+        )
+
+        return sortedVouchers.joinToString("\n\n----------------\n\n") {
             "🔹 *${it.provider}*: ₪${it.balance} (Exp: ${it.expiryDate}) [${it.voucherNumber}]"
         }
     }
