@@ -9,35 +9,47 @@ import org.springframework.transaction.annotation.Transactional
 class ShoppingService (private val repository: ShoppingRepository, private val voucherService: VoucherService) {
 
     @Transactional
-    fun processIncomingMessage(body: String, sender: String): String {
+    fun processIncomingMessage(body: String, sender: String): List<String> {
         val input = body.trim().lowercase()
 
-        return when {
-            input == "help" || input == "עזרה" || input == "menu" -> getHelpMenu()
-            // voucher commands
+        val result: List<String> = when {
+            input == "help" || input == "עזרה" || input == "menu" ->
+                listOf(getHelpMenu())
+
             input.startsWith("add voucher") || input.startsWith("הוסף שובר") ->
-                voucherService.addVoucher(body)
+                listOf(voucherService.addVoucher(body))
+
             input == "vouchers" || input == "שוברים" ->
                 voucherService.getVouchers(null)
+
             input.startsWith("get voucher ") || input.startsWith("שובר ") -> {
                 val provider = body.split(" ").last()
+                // ENSURE THIS IS THE LAST LINE IN THIS BLOCK
                 voucherService.getVouchers(provider)
             }
-            // shopping list commands
+
             input.startsWith("delete voucher") || input.startsWith("מחק שובר") -> {
                 val number = body.split(" ").last()
-                voucherService.deleteVoucher(number)
+                listOf(voucherService.deleteVoucher(number))
             }
-            input == "list" || input == "רשימה" -> formatList()
-            input == "clear" || input == "נקה" -> clearList()
-            input.startsWith("למחוק ") -> removeItem(body.substring(6).trim())
-            input.startsWith("מחק ") -> removeItem(body.substring(4).trim())
-            input.startsWith("הסר ") -> removeItem(body.substring(4).trim())
-            input.startsWith("קניתי ") -> removeItem(body.substring(6).trim())
-            input.startsWith("delete ") -> removeItem(body.substring(7).trim())
-            else -> addItem(input, sender)
+
+            input == "list" || input == "רשימה" -> listOf(formatList() ?: "List is empty")
+            input == "clear" || input == "נקה" -> listOf(clearList() ?: "Cleared")
+
+            input.startsWith("למחוק ") -> listOf(removeItem(body.substring(6).trim()) ?: "Removed")
+            input.startsWith("מחק ") -> listOf(removeItem(body.substring(4).trim()) ?: "Removed")
+            input.startsWith("הסר ") -> listOf(removeItem(body.substring(4).trim()) ?: "Removed")
+            input.startsWith("קניתי ") -> listOf(removeItem(body.substring(6).trim()) ?: "Removed")
+            input.startsWith("delete ") -> listOf(removeItem(body.substring(7).trim()) ?: "Removed")
+
+            else -> {
+                val added = addItem(input, sender)
+                listOf(added ?: "Item added")
             }
         }
+
+        return result
+    }
 
     private fun formatList(): String {
         val items = repository.findAll()

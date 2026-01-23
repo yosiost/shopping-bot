@@ -70,6 +70,19 @@ class NotificationService (
         } catch (e: Exception) {
             logger.error("Failed to send expiry notification: ${e.message}")
         }
+    }
 
+    fun sendManualMessage(to: String, content: String) {
+        try {
+            Twilio.init(accountSid, authToken)
+            Message.creator(
+                PhoneNumber("whatsapp:$to"),
+                PhoneNumber("whatsapp:$fromNumber"),
+                content
+            ).create()
+            logger.info("Manual message sent to $to")
+        } catch (e: Exception) {
+            logger.error("Failed to send manual message: ${e.message}")
+        }
     }
 }

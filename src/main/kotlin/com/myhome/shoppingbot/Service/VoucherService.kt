@@ -39,14 +39,14 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
         }
     }
 
-    fun getVouchers(provider: String? = null): String {
+    fun getVouchers(provider: String? = null): List<String> {
         val vouchers = if (provider.isNullOrBlank()) {
             repository.findByBalanceGreaterThan(0.0)
         } else {
             repository.findByProviderAndBalanceGreaterThan(provider, 0.0)
         }
 
-        if (vouchers.isEmpty()) return "No active vouchers found. 💸"
+        if (vouchers.isEmpty()) return listOf("No active vouchers found. 💸")
         logger.info("Found ${vouchers.size} vouchers to refresh.")
         runBlocking {
             vouchers.map { voucher ->
@@ -77,8 +77,10 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
                 .thenBy { it.expiryDate }
         )
 
-        return sortedVouchers.joinToString("\n\n----------------\n\n") {
+        return sortedVouchers.map {
             "🔹 *${it.provider}*: ₪${it.balance} (Exp: ${it.expiryDate}) [${it.voucherNumber}]"
+        }.chunked(10).map { chunk ->
+            chunk.joinToString("\n\n----------------\n\n")
         }
     }
 
