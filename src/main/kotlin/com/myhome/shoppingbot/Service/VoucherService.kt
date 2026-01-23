@@ -3,6 +3,10 @@ package com.myhome.shoppingbot.Service
 import com.myhome.shoppingbot.Data.Voucher
 import com.myhome.shoppingbot.Repository.VoucherRepository
 import com.myhome.shoppingbot.Vouchers.VoucherBalanceFetcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.stereotype.Service
@@ -44,24 +48,28 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
 
         if (vouchers.isEmpty()) return "No active vouchers found. 💸"
         logger.info("Found ${vouchers.size} vouchers to refresh.")
-        vouchers.forEach { voucher ->
-            try {
-                val fetcher = fetchers.firstOrNull { it.supports(voucher.provider) }
-                if (fetcher == null) {
-                    logger.info("No fetcher found for ${voucher.provider}")
-                }
-                val updatedBalance: Double? = fetcher?.fetch(voucher)
+        runBlocking {
+            vouchers.map { voucher ->
+                async(Dispatchers.IO) {
+                    try {
+                        val fetcher = fetchers.firstOrNull { it.supports(voucher.provider) }
+                        if (fetcher == null) {
+                            logger.info("No fetcher found for ${voucher.provider}")
+                        }
+                        val updatedBalance: Double? = fetcher?.fetch(voucher)
 
-                if (updatedBalance != null) {
-                    logger.info("Updated balance for ${voucher.provider}: ${voucher.voucherNumber} to $updatedBalance")
-                    voucher.balance = updatedBalance
-                    repository.save(voucher)
-                } else {
-                    logger.info("Failed to refresh ${voucher.provider}: ${voucher.voucherNumber}")
+                        if (updatedBalance != null) {
+                            logger.info("Updated balance for ${voucher.provider}: ${voucher.voucherNumber} to $updatedBalance")
+                            voucher.balance = updatedBalance
+                            repository.save(voucher)
+                        } else {
+                            logger.info("Failed to refresh ${voucher.provider}: ${voucher.voucherNumber}")
+                        }
+                    } catch (e: Exception) {
+                        logger.error("Error fetching ${voucher.provider}: ${e.message}")
+                    }
                 }
-            } catch (e: Exception) {
-                println("Failed to refresh ${voucher.provider}: ${e.message}")
-            }
+            }.awaitAll()
         }
 
         val sortedVouchers = vouchers.sortedWith(

@@ -28,6 +28,7 @@ repositories {
 
 dependencies {
 	implementation("com.twilio.sdk:twilio:10.6.2")
+	implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
 	implementation("org.springframework.boot:spring-boot-h2console")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
