@@ -49,7 +49,6 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
                 val fetcher = fetchers.firstOrNull { it.supports(voucher.provider) }
                 if (fetcher == null) {
                     logger.info("No fetcher found for ${voucher.provider}")
-                    return "No fetcher found for ${voucher.provider}"
                 }
                 val updatedBalance: Double? = fetcher?.fetch(voucher)
 
