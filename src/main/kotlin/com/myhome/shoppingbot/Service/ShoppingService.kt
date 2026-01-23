@@ -13,6 +13,7 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
         val input = body.trim().lowercase()
 
         return when {
+            input == "help" || input == "עזרה" || input == "menu" -> getHelpMenu()
             // voucher commands
             input.startsWith("add voucher") || input.startsWith("הוסף שובר") ->
                 voucherService.addVoucher(body)
@@ -65,6 +66,23 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
         }
         repository.deleteByNameIgnoreCase(name)
         return "Removed *$name* from the list. ✅"
+    }
+
+    private fun getHelpMenu(): String {
+        return """
+        *🛍️ Shopping List / רשימת קניות*
+        • *<item name>* : Add item / הוספת פריט
+        • *list* or *רשימה* : View list / הצגת הרשימה
+        • *קניתי/מחק/הסר <item>* : Remove item / מחיקת פריט
+        • *clear* or *נקה* : Delete all / ניקוי רשימה
+        
+        *🎫 Vouchers / שוברים*
+        • *add voucher <provider> <number> <expiry> <balance> <amount>*
+        • *הוסף שובר <חברה> <מספר> <תוקף> <יתרה> <סכום מקור>*
+        • *vouchers* or *שוברים* : Show all / כל השוברים
+        • *get voucher <provider>* or *שובר <חברה>* : Filter by company
+        • *delete voucher <number>* or *מחק שובר <מספר>* : Remove voucher
+            """.trimIndent()
     }
 
 }
