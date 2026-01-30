@@ -43,7 +43,7 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
             input.startsWith("delete ") -> listOf(removeItem(body.substring(7).trim()) ?: "Removed")
 
             else -> {
-                val added = addItem(input, sender)
+                val added = addItem(body, sender)
                 listOf(added ?: "Item added")
             }
         }
@@ -66,8 +66,14 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
     }
 
     private fun addItem(name: String, addedBy: String): String {
-        repository.save(ShoppingItem(name = name, addedBy = addedBy))
-        return "Added *$name* to the list. 📝"
+        val trimmedName = name.trim()
+        val existingItem = repository.findByNameIgnoreCase(trimmedName)
+        if (existingItem != null) {
+            return "Item *$trimmedName* already in the list!. \uD83E\uDD14"
+        } else {
+            repository.save(ShoppingItem(name = name, addedBy = addedBy))
+            return "Added *$name* to the list. 📝"
+        }
     }
 
     private fun removeItem(itemName: String): String {
