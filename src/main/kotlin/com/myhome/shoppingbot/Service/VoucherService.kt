@@ -83,7 +83,7 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
             val vendorInfo = if (!it.vendor.isNullOrBlank()) " | Vendor: ${it.vendor}" else ""
             val remarksInfo = if (!it.remarks.isNullOrBlank()) "\n📝 _${it.remarks}_" else ""
 
-            "🔹 *${it.provider}*: ₪${it.balance} (Exp: ${it.expiryDate}) [${it.voucherNumber}]"
+            "🔹 *${it.provider}*: ₪${it.balance} (Exp: ${it.expiryDate})$vendorInfo\n`[${it.voucherNumber}]`$remarksInfo"
         }.chunked(10).map { chunk ->
             chunk.joinToString("\n\n----------------\n\n")
         }
