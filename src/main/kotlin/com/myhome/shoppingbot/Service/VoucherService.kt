@@ -21,7 +21,7 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
         // Expected format: add voucher <voucher_number> <provider> <amount> <yyyy-mm-dd>
         val parts = input.split(" ")
         if (parts.size < 6) {
-            return "Invalid voucher format. Please use: <voucher_number> <provider> <amount>  <yyyy-mm-dd>"
+            return "Invalid voucher format. Please use: <voucher_number> <provider> <amount>  <yyyy-mm-dd> [vendor] [remarks]"
         }
 
         return try {
@@ -30,7 +30,9 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
                 provider = parts[3],
                 amount = parts[4].toDouble(),
                 balance = parts[4].toDouble(),
-                expiryDate = LocalDate.parse(parts[5])
+                expiryDate = LocalDate.parse(parts[5]),
+                vendor = if (parts.size > 6) parts[6] else null,
+                remarks = if (parts.size > 7) parts.drop(7).joinToString(" ") else null
             )
             repository.save(voucher)
             "Voucher ${voucher.provider} added successfully."
@@ -78,6 +80,9 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
         )
 
         return sortedVouchers.map {
+            val vendorInfo = if (!it.vendor.isNullOrBlank()) " | Vendor: ${it.vendor}" else ""
+            val remarksInfo = if (!it.remarks.isNullOrBlank()) "\n📝 _${it.remarks}_" else ""
+
             "🔹 *${it.provider}*: ₪${it.balance} (Exp: ${it.expiryDate}) [${it.voucherNumber}]"
         }.chunked(10).map { chunk ->
             chunk.joinToString("\n\n----------------\n\n")

@@ -18,5 +18,7 @@ data class Voucher(
     val provider: String,
     val amount: Double,
     var balance: Double,
-    val expiryDate: LocalDate
+    val expiryDate: LocalDate,
+    val vendor: String? = null,
+    val remarks: String? = null
 )

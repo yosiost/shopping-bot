@@ -43,8 +43,14 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
             input.startsWith("delete ") -> listOf(removeItem(body.substring(7).trim()) ?: "Removed")
 
             else -> {
-                val added = addItem(body, sender)
-                listOf(added ?: "Item added")
+                val lines = body.lines().map { it.trim() }.filter { it.isNotBlank() }
+
+                if (lines.size > 1) {
+                    val summary = lines.map { addItem(it, sender) }.joinToString("\n")
+                    listOf(summary)
+                } else {
+                    listOf(addItem(body, sender))
+                }
             }
         }
 
@@ -67,12 +73,13 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
 
     private fun addItem(name: String, addedBy: String): String {
         val trimmedName = name.trim()
+        if (trimmedName.isBlank()) return ""
         val existingItem = repository.findByNameIgnoreCase(trimmedName)
-        if (existingItem != null) {
-            return "Item *$trimmedName* already in the list!. \uD83E\uDD14"
+        return if (existingItem != null) {
+            "-$trimmedName (already in list \uD83E\uDD14)"
         } else {
-            repository.save(ShoppingItem(name = name, addedBy = addedBy))
-            return "Added *$name* to the list. 📝"
+            repository.save(ShoppingItem(name = trimmedName, addedBy = addedBy))
+            "Added *$trimmedName* 📝"
         }
     }
 
