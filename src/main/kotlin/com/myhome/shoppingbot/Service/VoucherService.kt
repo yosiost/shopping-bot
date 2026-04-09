@@ -18,10 +18,9 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
 
     @Transactional
     fun addVoucher(input: String): String {
-        // Expected format: add voucher <voucher_number> <provider> <amount> <yyyy-mm-dd>
         val parts = input.split(" ")
         if (parts.size < 6) {
-            return "Invalid voucher format. Please use: <voucher_number> <provider> <amount>  <yyyy-mm-dd> [vendor] [remarks]"
+            return "Invalid voucher format. Please use: <voucher_number> <provider> <amount> <yyyy-mm-dd> [vendor] [remarks]"
         }
 
         return try {
@@ -42,30 +41,34 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
     }
 
     fun getVouchers(provider: String? = null): List<String> {
-        val vouchers = if (provider.isNullOrBlank()) {
+        val today = LocalDate.now()
+
+        // 1. Fetch from DB and filter out expired vouchers (expiryDate < today)
+        val allVouchers = if (provider.isNullOrBlank()) {
             repository.findByBalanceGreaterThan(0.0)
         } else {
             repository.findByProviderAndBalanceGreaterThan(provider, 0.0)
         }
 
-        if (vouchers.isEmpty()) return listOf("No active vouchers found. 💸")
-        logger.info("Found ${vouchers.size} vouchers to refresh.")
+        // Filter: Keep only vouchers where expiryDate is today or in the future
+        val activeVouchers = allVouchers.filter { !it.expiryDate.isBefore(today) }
+
+        if (activeVouchers.isEmpty()) return listOf("No active or unexpired vouchers found. 💸")
+
+        logger.info("Found ${activeVouchers.size} unexpired vouchers to refresh.")
+
+        // 2. Refresh balances in parallel
         runBlocking {
-            vouchers.map { voucher ->
+            activeVouchers.map { voucher ->
                 async(Dispatchers.IO) {
                     try {
                         val fetcher = fetchers.firstOrNull { it.supports(voucher.provider) }
-                        if (fetcher == null) {
-                            logger.info("No fetcher found for ${voucher.provider}")
-                        }
                         val updatedBalance: Double? = fetcher?.fetch(voucher)
 
                         if (updatedBalance != null) {
                             logger.info("Updated balance for ${voucher.provider}: ${voucher.voucherNumber} to $updatedBalance")
                             voucher.balance = updatedBalance
                             repository.save(voucher)
-                        } else {
-                            logger.info("Failed to refresh ${voucher.provider}: ${voucher.voucherNumber}")
                         }
                     } catch (e: Exception) {
                         logger.error("Error fetching ${voucher.provider}: ${e.message}")
@@ -74,9 +77,9 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
             }.awaitAll()
         }
 
-        val sortedVouchers = vouchers.sortedWith(
-            compareBy<Voucher> { it.provider }
-                .thenBy { it.expiryDate }
+        // 3. Final display logic (showing vendor and remarks)
+        val sortedVouchers = activeVouchers.sortedWith(
+            compareBy<Voucher> { it.provider }.thenBy { it.expiryDate }
         )
 
         return sortedVouchers.map {
