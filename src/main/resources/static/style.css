@@ -1,0 +1,373 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --green: #2E7D32;
+  --green-light: #4CAF50;
+  --red: #c62828;
+  --orange: #E65100;
+  --yellow: #F9A825;
+  --bg: #f0f4f0;
+  --card: #ffffff;
+  --border: #e0e0e0;
+  --text: #212121;
+  --muted: #757575;
+  --radius: 12px;
+  --header-h: 56px;
+  --tab-h: 48px;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Screens */
+.screen { min-height: 100dvh; }
+.hidden { display: none !important; }
+
+/* Auth */
+.auth-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  gap: 16px;
+  padding: 32px 24px;
+  text-align: center;
+}
+.auth-logo { font-size: 64px; }
+.auth-box h1 { font-size: 28px; font-weight: 700; color: var(--green); }
+.auth-box p { color: var(--muted); }
+#signin-button { margin-top: 8px; }
+
+/* Header */
+header {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--header-h);
+  background: var(--green);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+#header-title { font-size: 18px; font-weight: 600; }
+.header-right { display: flex; align-items: center; gap: 8px; }
+
+.avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.6);
+  display: none;
+}
+.avatar.visible { display: block; }
+
+.icon-btn {
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: white;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.icon-btn:active { background: rgba(255,255,255,0.3); }
+
+/* Tabs */
+.tabs {
+  position: fixed;
+  top: var(--header-h);
+  left: 0; right: 0;
+  height: var(--tab-h);
+  display: flex;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  z-index: 99;
+}
+.tab-btn {
+  flex: 1;
+  border: none;
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s;
+  border-bottom: 3px solid transparent;
+}
+.tab-btn.active { color: var(--green); border-bottom-color: var(--green); }
+
+/* Panes */
+.pane {
+  margin-top: calc(var(--header-h) + var(--tab-h));
+  min-height: calc(100dvh - var(--header-h) - var(--tab-h));
+  padding: 16px;
+  padding-bottom: 80px;
+}
+
+/* Add row */
+.add-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.add-row input {
+  flex: 1;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 16px;
+  background: var(--card);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.add-row input:focus { border-color: var(--green); }
+
+/* Shopping list */
+.item-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.item-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  animation: slideIn 0.2s ease;
+}
+.item-name { font-size: 16px; flex: 1; }
+.done-btn {
+  background: none;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.done-btn:active { background: #e8f5e9; border-color: var(--green); }
+
+/* Vouchers */
+.voucher-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+.voucher-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  border-left: 4px solid var(--green);
+  animation: slideIn 0.2s ease;
+}
+.voucher-card.expiry-soon { border-left-color: var(--yellow); }
+.voucher-card.expiry-urgent { border-left-color: var(--orange); }
+.voucher-card.expiry-critical { border-left-color: var(--red); }
+
+.voucher-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.voucher-provider { font-size: 16px; font-weight: 700; color: var(--green); }
+.voucher-balance { font-size: 22px; font-weight: 700; }
+.voucher-meta { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.voucher-number {
+  font-family: monospace;
+  font-size: 12px;
+  background: var(--bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 4px;
+}
+.voucher-remarks { font-size: 13px; color: var(--muted); margin-top: 6px; font-style: italic; }
+.expiry-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  background: #e8f5e9;
+  color: var(--green);
+}
+.expiry-badge.soon { background: #fff8e1; color: var(--yellow); }
+.expiry-badge.urgent { background: #fff3e0; color: var(--orange); }
+.expiry-badge.critical { background: #ffebee; color: var(--red); }
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+  border-radius: 6px;
+}
+.delete-btn:active { color: var(--red); background: #ffebee; }
+
+/* Voucher form */
+details { margin-top: 8px; }
+details summary {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--green);
+  cursor: pointer;
+  padding: 12px 0;
+  list-style: none;
+}
+details summary::-webkit-details-marker { display: none; }
+.voucher-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+}
+.voucher-form input {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 15px;
+  background: var(--card);
+  outline: none;
+}
+.voucher-form input:focus { border-color: var(--green); }
+
+/* Buttons */
+.primary-btn {
+  background: var(--green);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.primary-btn:active { background: var(--green-light); }
+
+.secondary-btn {
+  background: white;
+  color: var(--green);
+  border: 1.5px solid var(--green);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+}
+.secondary-btn:active { background: #e8f5e9; }
+.secondary-btn.loading { opacity: 0.6; pointer-events: none; }
+
+.danger-btn {
+  background: none;
+  color: var(--red);
+  border: 1.5px solid var(--red);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.danger-btn:active { background: #ffebee; }
+
+.pane-footer {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  padding: 48px 16px;
+  font-size: 15px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #323232;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 24px;
+  font-size: 14px;
+  z-index: 999;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  animation: fadeIn 0.2s ease;
+}
+
+/* Dialog / overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.dialog {
+  background: white;
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 320px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+#dialog-msg { margin-bottom: 20px; font-size: 15px; line-height: 1.5; }
+.dialog-btns { display: flex; gap: 10px; justify-content: flex-end; }
+
+/* Animations */
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinning { display: inline-block; animation: spin 1s linear infinite; }
+
+/* RTL adjustments */
+[dir="rtl"] .voucher-card { border-left: none; border-right: 4px solid var(--green); }
+[dir="rtl"] .voucher-card.expiry-soon { border-right-color: var(--yellow); }
+[dir="rtl"] .voucher-card.expiry-urgent { border-right-color: var(--orange); }
+[dir="rtl"] .voucher-card.expiry-critical { border-right-color: var(--red); }

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Family">
+  <meta name="theme-color" content="#2E7D32">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="stylesheet" href="/style.css">
+  <title>Family App</title>
+</head>
+<body>
+
+  <!-- Auth screen -->
+  <div id="auth-screen" class="screen hidden">
+    <div class="auth-box">
+      <div class="auth-logo">🛒</div>
+      <h1 id="auth-title">Family App</h1>
+      <p id="auth-subtitle">Sign in to continue</p>
+      <div id="signin-button"></div>
+    </div>
+  </div>
+
+  <!-- Main app -->
+  <div id="app-screen" class="screen hidden">
+    <header>
+      <span id="header-title">Family App</span>
+      <div class="header-right">
+        <button id="lang-btn" class="icon-btn" title="Toggle language">עב</button>
+        <img id="user-avatar" src="" alt="" class="avatar">
+        <button id="signout-btn" class="icon-btn" title="Sign out">⎋</button>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="shopping">
+        <span>🛒</span> <span class="tab-label" data-key="shopping">Shopping</span>
+      </button>
+      <button class="tab-btn" data-tab="vouchers">
+        <span>🎫</span> <span class="tab-label" data-key="vouchers">Vouchers</span>
+      </button>
+    </nav>
+
+    <!-- Shopping tab -->
+    <div id="pane-shopping" class="pane active">
+      <div class="add-row">
+        <input id="item-input" type="text" data-placeholder-key="addItem" placeholder="Add item…" autocomplete="off">
+        <button id="add-item-btn" class="primary-btn">+</button>
+      </div>
+      <ul id="shopping-list" class="item-list"></ul>
+      <div class="pane-footer">
+        <button id="clear-btn" class="danger-btn" data-key="clearAll">Clear all</button>
+      </div>
+    </div>
+
+    <!-- Vouchers tab -->
+    <div id="pane-vouchers" class="pane hidden">
+      <div class="voucher-toolbar">
+        <button id="refresh-btn" class="secondary-btn">
+          <span id="refresh-icon">⟳</span> <span data-key="refreshBalances">Refresh balances</span>
+        </button>
+      </div>
+      <div id="vouchers-list"></div>
+      <div class="pane-footer">
+        <details id="add-voucher-details">
+          <summary data-key="addVoucher">+ Add voucher</summary>
+          <form id="add-voucher-form" class="voucher-form">
+            <input name="provider" type="text" data-placeholder-key="provider" placeholder="Provider" required>
+            <input name="voucherNumber" type="text" data-placeholder-key="voucherNumber" placeholder="Voucher number" required>
+            <input name="amount" type="number" step="0.01" data-placeholder-key="amount" placeholder="Amount (₪)" required>
+            <input name="expiryDate" type="date" required>
+            <input name="vendor" type="text" data-placeholder-key="vendor" placeholder="Vendor (optional)">
+            <input name="remarks" type="text" data-placeholder-key="remarks" placeholder="Remarks (optional)">
+            <button type="submit" class="primary-btn" data-key="save">Save</button>
+          </form>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Confirm dialog -->
+  <div id="overlay" class="overlay hidden">
+    <div class="dialog">
+      <p id="dialog-msg"></p>
+      <div class="dialog-btns">
+        <button id="dialog-cancel" class="secondary-btn" data-key="cancel">Cancel</button>
+        <button id="dialog-confirm" class="danger-btn" data-key="confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+  <script src="https://accounts.google.com/gsi/client" onload="initApp()"></script>
+</body>
+</html>

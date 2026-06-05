@@ -40,33 +40,25 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
         }
     }
 
-    fun getVouchers(provider: String? = null): List<String> {
+    private fun fetchActiveVouchers(provider: String? = null): List<Voucher> {
         val today = LocalDate.now()
-
-        // 1. Fetch from DB and filter out expired vouchers (expiryDate < today)
-        val allVouchers = if (provider.isNullOrBlank()) {
+        val all = if (provider.isNullOrBlank())
             repository.findByBalanceGreaterThan(0.0)
-        } else {
+        else
             repository.findByProviderAndBalanceGreaterThan(provider, 0.0)
-        }
+        return all.filter { !it.expiryDate.isBefore(today) }
+    }
 
-        // Filter: Keep only vouchers where expiryDate is today or in the future
-        val activeVouchers = allVouchers.filter { !it.expiryDate.isBefore(today) }
-
-        if (activeVouchers.isEmpty()) return listOf("No active or unexpired vouchers found. 💸")
-
-        logger.info("Found ${activeVouchers.size} unexpired vouchers to refresh.")
-
-        // 2. Refresh balances in parallel
+    private fun refreshBalances(vouchers: List<Voucher>) {
+        if (vouchers.isEmpty()) return
         runBlocking {
-            activeVouchers.map { voucher ->
+            vouchers.map { voucher ->
                 async(Dispatchers.IO) {
                     try {
                         val fetcher = fetchers.firstOrNull { it.supports(voucher.provider) }
                         val updatedBalance: Double? = fetcher?.fetch(voucher)
-
                         if (updatedBalance != null) {
-                            logger.info("Updated balance for ${voucher.provider}: ${voucher.voucherNumber} to $updatedBalance")
+                            logger.info("Updated balance for ${voucher.provider}:${voucher.voucherNumber} to $updatedBalance")
                             voucher.balance = updatedBalance
                             repository.save(voucher)
                         }
@@ -76,20 +68,28 @@ class VoucherService(private val repository: VoucherRepository, private val fetc
                 }
             }.awaitAll()
         }
+    }
 
-        // 3. Final display logic (showing vendor and remarks)
-        val sortedVouchers = activeVouchers.sortedWith(
-            compareBy<Voucher> { it.provider }.thenBy { it.expiryDate }
-        )
-
+    fun getVouchers(provider: String? = null): List<String> {
+        val activeVouchers = fetchActiveVouchers(provider)
+        if (activeVouchers.isEmpty()) return listOf("No active or unexpired vouchers found. 💸")
+        logger.info("Found ${activeVouchers.size} unexpired vouchers to refresh.")
+        refreshBalances(activeVouchers)
+        val sortedVouchers = activeVouchers.sortedWith(compareBy<Voucher> { it.provider }.thenBy { it.expiryDate })
         return sortedVouchers.map {
             val vendorInfo = if (!it.vendor.isNullOrBlank()) " | Vendor: ${it.vendor}" else ""
             val remarksInfo = if (!it.remarks.isNullOrBlank()) "\n📝 _${it.remarks}_" else ""
-
             "🔹 *${it.provider}*: ₪${it.balance} (Exp: ${it.expiryDate})$vendorInfo\n`[${it.voucherNumber}]`$remarksInfo"
-        }.chunked(10).map { chunk ->
-            chunk.joinToString("\n\n----------------\n\n")
-        }
+        }.chunked(10).map { chunk -> chunk.joinToString("\n\n----------------\n\n") }
+    }
+
+    fun listVouchersRaw(): List<Voucher> =
+        fetchActiveVouchers().sortedWith(compareBy<Voucher> { it.provider }.thenBy { it.expiryDate })
+
+    fun refreshVouchersRaw(): List<Voucher> {
+        val active = fetchActiveVouchers()
+        refreshBalances(active)
+        return active.sortedWith(compareBy<Voucher> { it.provider }.thenBy { it.expiryDate })
     }
 
     @Transactional
