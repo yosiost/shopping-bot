@@ -18,6 +18,8 @@ class AppController(
     private val voucherService: VoucherService
 ) {
 
+    // ── Shopping ──────────────────────────────────────────────────────────────
+
     @GetMapping("/shopping")
     fun getShoppingList(): List<ShoppingItem> = shoppingRepository.findAll().toList()
 
@@ -44,23 +46,35 @@ class AppController(
         return ResponseEntity.ok().build()
     }
 
+    // ── Vouchers ──────────────────────────────────────────────────────────────
+
+    private fun voucherAccess(request: HttpServletRequest): Boolean =
+        request.getSession(false)?.getAttribute("canViewVouchers") as? Boolean ?: true
+
     @GetMapping("/vouchers")
-    fun getVouchers(): List<Voucher> = voucherService.listVouchersRaw()
+    fun getVouchers(request: HttpServletRequest): ResponseEntity<Any> {
+        if (!voucherAccess(request)) return ResponseEntity.status(403).body(mapOf("error" to "Access denied"))
+        return ResponseEntity.ok(voucherService.listVouchersRaw())
+    }
 
     @PostMapping("/vouchers/refresh")
-    fun refreshVouchers(): List<Voucher> = voucherService.refreshVouchersRaw()
+    fun refreshVouchers(request: HttpServletRequest): ResponseEntity<Any> {
+        if (!voucherAccess(request)) return ResponseEntity.status(403).body(mapOf("error" to "Access denied"))
+        return ResponseEntity.ok(voucherService.refreshVouchersRaw())
+    }
 
     @PostMapping("/vouchers")
-    fun addVoucher(@RequestBody req: AddVoucherRequest): ResponseEntity<Any> {
+    fun addVoucher(@RequestBody req: AddVoucherRequest, request: HttpServletRequest): ResponseEntity<Any> {
+        if (!voucherAccess(request)) return ResponseEntity.status(403).body(mapOf("error" to "Access denied"))
         return try {
             val voucher = Voucher(
                 voucherNumber = req.voucherNumber,
-                provider = req.provider,
-                amount = req.amount,
-                balance = req.balance ?: req.amount,
-                expiryDate = LocalDate.parse(req.expiryDate),
-                vendor = req.vendor?.takeIf { it.isNotBlank() },
-                remarks = req.remarks?.takeIf { it.isNotBlank() }
+                provider      = req.provider,
+                amount        = req.amount,
+                balance       = req.balance ?: req.amount,
+                expiryDate    = LocalDate.parse(req.expiryDate),
+                vendor        = req.vendor?.takeIf  { it.isNotBlank() },
+                remarks       = req.remarks?.takeIf { it.isNotBlank() }
             )
             ResponseEntity.ok(voucherRepository.save(voucher))
         } catch (e: Exception) {
@@ -69,7 +83,8 @@ class AppController(
     }
 
     @DeleteMapping("/vouchers/{number}")
-    fun deleteVoucher(@PathVariable number: String): ResponseEntity<Unit> {
+    fun deleteVoucher(@PathVariable number: String, request: HttpServletRequest): ResponseEntity<Any> {
+        if (!voucherAccess(request)) return ResponseEntity.status(403).body(mapOf("error" to "Access denied"))
         voucherRepository.findByVoucherNumber(number) ?: return ResponseEntity.notFound().build()
         voucherRepository.deleteByVoucherNumber(number)
         return ResponseEntity.ok().build()
@@ -79,10 +94,10 @@ class AppController(
 data class AddItemRequest(val name: String)
 data class AddVoucherRequest(
     val voucherNumber: String,
-    val provider: String,
-    val amount: Double,
-    val balance: Double?,
-    val expiryDate: String,
-    val vendor: String?,
-    val remarks: String?
+    val provider:      String,
+    val amount:        Double,
+    val balance:       Double?,
+    val expiryDate:    String,
+    val vendor:        String?,
+    val remarks:       String?
 )

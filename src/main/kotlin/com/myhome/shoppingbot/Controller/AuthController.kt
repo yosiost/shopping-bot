@@ -10,11 +10,16 @@ import org.springframework.web.client.RestTemplate
 @RequestMapping("/api/auth")
 class AuthController(
     private val restTemplate: RestTemplate,
-    @Value("\${ALLOWED_EMAILS:}") private val allowedEmailsStr: String
+    @Value("\${ALLOWED_EMAILS:}") private val allowedEmailsStr: String,
+    @Value("\${VOUCHER_EMAILS:}") private val voucherEmailsStr: String
 ) {
 
     private val allowedEmails: Set<String> by lazy {
         allowedEmailsStr.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
+    }
+
+    private val voucherEmails: Set<String> by lazy {
+        voucherEmailsStr.split(",").map { it.trim() }.filter { it.isNotBlank() }.toSet()
     }
 
     @GetMapping("/me")
@@ -22,10 +27,13 @@ class AuthController(
         val session = request.getSession(false)
         val email = session?.getAttribute("email") as? String
             ?: return ResponseEntity.status(401).body(mapOf("error" to "Not logged in"))
+        // Old sessions without the attribute default to true (backward compatible)
+        val canViewVouchers = session.getAttribute("canViewVouchers") as? Boolean ?: true
         return ResponseEntity.ok(mapOf(
-            "email"   to email,
-            "name"    to (session.getAttribute("name") as? String ?: ""),
-            "picture" to (session.getAttribute("picture") as? String ?: "")
+            "email"           to email,
+            "name"            to (session.getAttribute("name") as? String ?: ""),
+            "picture"         to (session.getAttribute("picture") as? String ?: ""),
+            "canViewVouchers" to canViewVouchers
         ))
     }
 
@@ -51,16 +59,20 @@ class AuthController(
             if (allowedEmails.isNotEmpty() && email !in allowedEmails)
                 return ResponseEntity.status(403).body(mapOf("error" to "Access denied"))
 
+            val canViewVouchers = voucherEmails.isEmpty() || email in voucherEmails
+
             val session = request.getSession(true)
             session.maxInactiveInterval = 30 * 24 * 60 * 60
-            session.setAttribute("email", email)
-            session.setAttribute("name", tokenInfo["name"] as? String ?: "")
-            session.setAttribute("picture", tokenInfo["picture"] as? String ?: "")
+            session.setAttribute("email",           email)
+            session.setAttribute("name",            tokenInfo["name"] as? String ?: "")
+            session.setAttribute("picture",         tokenInfo["picture"] as? String ?: "")
+            session.setAttribute("canViewVouchers", canViewVouchers)
 
             ResponseEntity.ok(mapOf(
-                "email"   to email,
-                "name"    to (tokenInfo["name"] as? String ?: ""),
-                "picture" to (tokenInfo["picture"] as? String ?: "")
+                "email"           to email,
+                "name"            to (tokenInfo["name"] as? String ?: ""),
+                "picture"         to (tokenInfo["picture"] as? String ?: ""),
+                "canViewVouchers" to canViewVouchers
             ))
         } catch (e: Exception) {
             ResponseEntity.status(401).body(mapOf("error" to "Invalid token: ${e.message}"))
