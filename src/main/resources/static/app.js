@@ -1,5 +1,9 @@
 'use strict';
 
+// ─── Icons ───────────────────────────────────────────────────────────────────
+
+const ICON_TRASH = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>`;
+
 // ─── i18n ────────────────────────────────────────────────────────────────────
 
 const T = {
@@ -214,13 +218,13 @@ async function loadShopping() {
 function renderShopping(items) {
   const list = document.getElementById('shopping-list');
   if (items.length === 0) {
-    list.innerHTML = `<div class="empty-state">${t('noItems')}</div>`;
+    list.innerHTML = `<li style="padding:40px 16px;text-align:center;color:var(--muted);font-size:15px;">${t('noItems')}</li>`;
     return;
   }
   list.innerHTML = items.map(item => `
     <li class="item-card">
       <span class="item-name">${esc(item.name)}</span>
-      <button class="done-btn" data-name="${esc(item.name)}" title="Done">✓</button>
+      <button class="trash-btn" data-name="${esc(item.name)}" aria-label="Remove ${esc(item.name)}">${ICON_TRASH}</button>
     </li>
   `).join('');
 }
@@ -237,8 +241,6 @@ async function addItem() {
 }
 
 async function removeItem(name) {
-  const ok = await confirm(t('confirmDelete'));
-  if (!ok) return;
   try {
     await api('DELETE', '/api/shopping/' + encodeURIComponent(name));
     loadShopping();
@@ -302,9 +304,9 @@ function renderVouchers(vouchers) {
             <div class="voucher-provider">${esc(v.provider)}</div>
             <div class="voucher-balance">₪${v.balance.toLocaleString()}</div>
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <div class="voucher-actions">
             <span class="expiry-badge ${cls.badge}">${t('daysLeft', days)}</span>
-            <button class="delete-btn" data-number="${esc(v.voucherNumber)}" title="Delete">🗑</button>
+            <button class="v-trash-btn" data-number="${esc(v.voucherNumber)}" aria-label="Delete voucher">${ICON_TRASH}</button>
           </div>
         </div>
         <div class="voucher-meta">${t('expires', v.expiryDate)}${v.vendor ? ' · ' + esc(v.vendor) : ''}</div>
@@ -387,7 +389,7 @@ async function initApp() {
   });
 
   document.getElementById('shopping-list').addEventListener('click', e => {
-    const btn = e.target.closest('.done-btn');
+    const btn = e.target.closest('.trash-btn');
     if (btn) removeItem(btn.dataset.name);
   });
 
@@ -396,7 +398,7 @@ async function initApp() {
   document.getElementById('refresh-btn').addEventListener('click', refreshVouchers);
 
   document.getElementById('vouchers-list').addEventListener('click', e => {
-    const btn = e.target.closest('.delete-btn');
+    const btn = e.target.closest('.v-trash-btn');
     if (btn) deleteVoucher(btn.dataset.number);
   });
 
