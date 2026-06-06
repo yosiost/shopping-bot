@@ -20,5 +20,8 @@ class ShoppingItem(
     @Column(nullable = false)
     val addedBy: String,
 
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+
+    // null / "GROCERY" = grocery list; "HOME" = home list
+    var listType: String? = null
 )

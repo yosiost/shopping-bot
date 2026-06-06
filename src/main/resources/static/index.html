@@ -47,13 +47,17 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
         <span class="tab-label" data-key="shopping">Shopping</span>
       </button>
+      <button class="tab-btn" data-tab="home">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="tab-label" data-key="home">Home</span>
+      </button>
       <button class="tab-btn" data-tab="vouchers">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         <span class="tab-label" data-key="vouchers">Vouchers</span>
       </button>
     </nav>
 
-    <!-- Shopping tab -->
+    <!-- Shopping tab (grocery) -->
     <div id="pane-shopping" class="pane active">
       <div class="add-row">
         <input id="item-input" type="text" data-placeholder-key="addItem" placeholder="Add item…" autocomplete="off">
@@ -62,7 +66,6 @@
         </button>
       </div>
 
-      <!-- Selection bar (shown in selection mode) -->
       <div id="select-bar" class="select-bar hidden">
         <button id="cancel-select-btn" class="sel-cancel-btn" data-key="cancel">Cancel</button>
         <span id="select-count-label">0 selected</span>
@@ -79,9 +82,33 @@
       </div>
     </div>
 
+    <!-- Home tab -->
+    <div id="pane-home" class="pane hidden">
+      <div class="add-row">
+        <input id="home-input" type="text" data-placeholder-key="addHomeItem" placeholder="Add item…" autocomplete="off">
+        <button id="add-home-btn" class="add-btn" aria-label="Add">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+
+      <div id="home-select-bar" class="select-bar hidden">
+        <button id="home-cancel-select" class="sel-cancel-btn" data-key="cancel">Cancel</button>
+        <span id="home-select-count">0 selected</span>
+        <button id="home-delete-selected" class="sel-delete-btn" disabled data-key="deleteSelected">Delete</button>
+      </div>
+
+      <ul id="home-list" class="item-list"></ul>
+
+      <div class="pane-footer">
+        <button id="home-clear-btn" class="ghost-danger-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          <span data-key="clearAll">Clear all</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Vouchers tab -->
     <div id="pane-vouchers" class="pane hidden">
-      <!-- Add voucher (top) + Refresh -->
       <div class="voucher-top-bar">
         <details id="add-voucher-details" class="add-voucher-card">
           <summary>

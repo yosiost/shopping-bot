@@ -18,16 +18,16 @@ class AppController(
     private val voucherService: VoucherService
 ) {
 
-    // ── Shopping ──────────────────────────────────────────────────────────────
+    // ── Grocery shopping list ─────────────────────────────────────────────────
 
     @GetMapping("/shopping")
-    fun getShoppingList(): List<ShoppingItem> = shoppingRepository.findAll().toList()
+    fun getShoppingList(): List<ShoppingItem> = shoppingRepository.findAllGrocery()
 
     @PostMapping("/shopping")
     fun addShoppingItem(@RequestBody req: AddItemRequest, request: HttpServletRequest): ResponseEntity<Any> {
         val name = req.name.trim()
         if (name.isBlank()) return ResponseEntity.badRequest().body(mapOf("error" to "Name required"))
-        val existing = shoppingRepository.findByNameIgnoreCase(name)
+        val existing = shoppingRepository.findGroceryByName(name)
         if (existing != null) return ResponseEntity.ok(existing)
         val email = request.getSession(false)?.getAttribute("email") as? String ?: "web"
         return ResponseEntity.ok(shoppingRepository.save(ShoppingItem(name = name, addedBy = email)))
@@ -35,14 +35,42 @@ class AppController(
 
     @DeleteMapping("/shopping/{name}")
     fun removeShoppingItem(@PathVariable name: String): ResponseEntity<Unit> {
-        shoppingRepository.findByNameIgnoreCase(name) ?: return ResponseEntity.notFound().build()
-        shoppingRepository.deleteByNameIgnoreCase(name)
+        shoppingRepository.findGroceryByName(name) ?: return ResponseEntity.notFound().build()
+        shoppingRepository.deleteGroceryByName(name)
         return ResponseEntity.ok().build()
     }
 
     @DeleteMapping("/shopping")
     fun clearShoppingList(): ResponseEntity<Unit> {
-        shoppingRepository.deleteAll()
+        shoppingRepository.deleteAllGrocery()
+        return ResponseEntity.ok().build()
+    }
+
+    // ── Home shopping list ────────────────────────────────────────────────────
+
+    @GetMapping("/home")
+    fun getHomeList(): List<ShoppingItem> = shoppingRepository.findAllHome()
+
+    @PostMapping("/home")
+    fun addHomeItem(@RequestBody req: AddItemRequest, request: HttpServletRequest): ResponseEntity<Any> {
+        val name = req.name.trim()
+        if (name.isBlank()) return ResponseEntity.badRequest().body(mapOf("error" to "Name required"))
+        val existing = shoppingRepository.findHomeByName(name)
+        if (existing != null) return ResponseEntity.ok(existing)
+        val email = request.getSession(false)?.getAttribute("email") as? String ?: "web"
+        return ResponseEntity.ok(shoppingRepository.save(ShoppingItem(name = name, addedBy = email, listType = "HOME")))
+    }
+
+    @DeleteMapping("/home/{name}")
+    fun removeHomeItem(@PathVariable name: String): ResponseEntity<Unit> {
+        shoppingRepository.findHomeByName(name) ?: return ResponseEntity.notFound().build()
+        shoppingRepository.deleteHomeByName(name)
+        return ResponseEntity.ok().build()
+    }
+
+    @DeleteMapping("/home")
+    fun clearHomeList(): ResponseEntity<Unit> {
+        shoppingRepository.deleteAllHome()
         return ResponseEntity.ok().build()
     }
 

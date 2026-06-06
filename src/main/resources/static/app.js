@@ -11,8 +11,10 @@ const T = {
     appTitle:          'Family App',
     authSubtitle:      'Sign in to continue',
     shopping:          'Shopping',
+    home:              'Home',
     vouchers:          'Vouchers',
     addItem:           'Add item…',
+    addHomeItem:       'Add item…',
     clearAll:          'Clear all',
     refreshBalances:   'Refresh balances',
     addVoucher:        '+ Add voucher',
@@ -25,9 +27,11 @@ const T = {
     cancel:            'Cancel',
     confirm:           'Confirm',
     noItems:           'List is empty',
+    noHomeItems:       'Home list is empty',
     noVouchers:        'No active vouchers',
     refreshing:        'Refreshing…',
     confirmClear:      'Clear the entire shopping list?',
+    confirmHomeClear:  'Clear the entire home list?',
     confirmDelete:     'Remove this item?',
     confirmDelVoucher: 'Delete this voucher?',
     scanAtCheckout:    'Show this QR code to the cashier',
@@ -35,13 +39,16 @@ const T = {
     selected:          (n) => `${n} selected`,
     daysLeft:          (n) => `${n}d left`,
     expires:           (d) => `Expires ${d}`,
+    addedBy:           (name) => `added by ${name}`,
   },
   he: {
     appTitle:          'אפליקציה משפחתית',
     authSubtitle:      'התחבר להמשיך',
     shopping:          'קניות',
+    home:              'בית',
     vouchers:          'שוברים',
     addItem:           'הוסף פריט…',
+    addHomeItem:       'הוסף פריט…',
     clearAll:          'נקה הכל',
     refreshBalances:   'רענן יתרות',
     addVoucher:        '+ הוסף שובר',
@@ -54,9 +61,11 @@ const T = {
     cancel:            'ביטול',
     confirm:           'אישור',
     noItems:           'הרשימה ריקה',
+    noHomeItems:       'רשימת הבית ריקה',
     noVouchers:        'אין שוברים פעילים',
     refreshing:        'מרענן…',
     confirmClear:      'לנקות את רשימת הקניות?',
+    confirmHomeClear:  'לנקות את רשימת הבית?',
     confirmDelete:     'להסיר פריט זה?',
     confirmDelVoucher: 'למחוק שובר זה?',
     scanAtCheckout:    'הצג את הקוד לקופאי',
@@ -64,6 +73,7 @@ const T = {
     selected:          (n) => `${n} נבחרו`,
     daysLeft:          (n) => `${n} ימים`,
     expires:           (d) => `תפוגה ${d}`,
+    addedBy:           (name) => `נוסף ע"י ${name}`,
   },
 };
 
@@ -82,6 +92,7 @@ function applyLang() {
   document.getElementById('auth-title').textContent = t('appTitle');
   document.getElementById('auth-subtitle').textContent = t('authSubtitle');
   document.getElementById('item-input').placeholder = t('addItem');
+  document.getElementById('home-input').placeholder = t('addHomeItem');
   document.querySelectorAll('[data-key]').forEach(el => {
     const key = el.dataset.key;
     if (T[lang][key] && typeof T[lang][key] !== 'function') el.textContent = T[lang][key];
@@ -94,20 +105,70 @@ function applyLang() {
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
-let currentUser     = null;
-let googleClientId  = '';
-let currentTab      = 'shopping';
-let selectionMode   = false;
+let currentUser    = null;
+let googleClientId = '';
+let currentTab     = 'shopping';
+let activeList     = 'grocery'; // 'grocery' | 'home'
+let selectionMode  = false;
 const selectedItems = new Set();
-let cachedItems     = [];
-let wakeLock        = null;
+let wakeLock       = null;
 
-// In-cart checked state, persisted in localStorage
-const checkedItems = new Set(
-  JSON.parse(localStorage.getItem('checkedItems') || '[]')
-);
+// Per-list configuration
+const LIST_CONFIG = {
+  grocery: {
+    api:          '/api/shopping',
+    listId:       'shopping-list',
+    inputId:      'item-input',
+    addBtnId:     'add-item-btn',
+    selectBarId:  'select-bar',
+    countId:      'select-count-label',
+    deleteSelId:  'delete-selected-btn',
+    cancelSelId:  'cancel-select-btn',
+    clearBtnId:   'clear-btn',
+    emptyKey:     'noItems',
+    clearKey:     'confirmClear',
+  },
+  home: {
+    api:          '/api/home',
+    listId:       'home-list',
+    inputId:      'home-input',
+    addBtnId:     'add-home-btn',
+    selectBarId:  'home-select-bar',
+    countId:      'home-select-count',
+    deleteSelId:  'home-delete-selected',
+    cancelSelId:  'home-cancel-select',
+    clearBtnId:   'home-clear-btn',
+    emptyKey:     'noHomeItems',
+    clearKey:     'confirmHomeClear',
+  },
+};
+
+// Per-list state: cached items and checked (in-cart) items
+const listState = {
+  grocery: {
+    cached:  [],
+    checked: new Set(JSON.parse(
+      localStorage.getItem('checked_grocery') ||
+      localStorage.getItem('checkedItems') || '[]'
+    )),
+  },
+  home: {
+    cached:  [],
+    checked: new Set(JSON.parse(localStorage.getItem('checked_home') || '[]')),
+  },
+};
+// Migrate old key on first load
+if (!localStorage.getItem('checked_grocery') && localStorage.getItem('checkedItems')) {
+  localStorage.setItem('checked_grocery', localStorage.getItem('checkedItems'));
+}
+localStorage.removeItem('checkedItems');
+
+function lc()     { return LIST_CONFIG[activeList]; }
+function ls()     { return listState[activeList]; }
+function listEl() { return document.getElementById(lc().listId); }
+
 function saveChecked() {
-  localStorage.setItem('checkedItems', JSON.stringify([...checkedItems]));
+  localStorage.setItem(`checked_${activeList}`, JSON.stringify([...ls().checked]));
 }
 
 // ─── API helpers ─────────────────────────────────────────────────────────────
@@ -177,16 +238,12 @@ function showApp(user) {
   const avatar = document.getElementById('user-avatar');
   if (user.picture) { avatar.src = user.picture; avatar.classList.add('visible'); }
 
-  // Show or hide vouchers tab based on server-granted permission
   const canVouchers = user.canViewVouchers !== false;
   document.querySelector('.tab-btn[data-tab="vouchers"]').classList.toggle('hidden', !canVouchers);
 
-  // If currently on vouchers tab but lost access, fall back to shopping
   if (!canVouchers && currentTab === 'vouchers') {
-    currentTab = 'shopping';
-    document.getElementById('pane-vouchers').classList.add('hidden');
-    document.getElementById('pane-shopping').classList.remove('hidden');
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'shopping'));
+    switchTab('shopping');
+    return;
   }
 
   loadCurrentTab();
@@ -222,15 +279,22 @@ async function checkSession() {
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 function switchTab(tab) {
+  if (selectionMode) exitSelectionMode();
   currentTab = tab;
+
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('pane-shopping').classList.toggle('hidden', tab !== 'shopping');
+  document.getElementById('pane-home').classList.toggle('hidden', tab !== 'home');
   document.getElementById('pane-vouchers').classList.toggle('hidden', tab !== 'vouchers');
+
+  if (tab === 'shopping') activeList = 'grocery';
+  else if (tab === 'home') activeList = 'home';
+
   loadCurrentTab();
 }
 
 function loadCurrentTab() {
-  if (currentTab === 'shopping') loadShopping();
+  if (currentTab === 'shopping' || currentTab === 'home') loadList();
   else loadVouchers();
 }
 
@@ -239,59 +303,64 @@ function loadCurrentTab() {
 function enterSelectionMode() {
   selectionMode = true;
   selectedItems.clear();
-  document.getElementById('shopping-list').classList.add('selection-active');
-  document.getElementById('select-bar').classList.remove('hidden');
+  listEl().classList.add('selection-active');
+  document.getElementById(lc().selectBarId).classList.remove('hidden');
   updateSelectionBar();
 }
 
 function exitSelectionMode() {
   selectionMode = false;
   selectedItems.clear();
-  const list = document.getElementById('shopping-list');
-  list.classList.remove('selection-active');
-  list.querySelectorAll('.item-card.selected').forEach(c => c.classList.remove('selected'));
-  document.getElementById('select-bar').classList.add('hidden');
+  const el = listEl();
+  el.classList.remove('selection-active');
+  el.querySelectorAll('.item-card.selected').forEach(c => c.classList.remove('selected'));
+  document.getElementById(lc().selectBarId).classList.add('hidden');
 }
 
 function toggleItemSelect(name) {
   if (selectedItems.has(name)) selectedItems.delete(name);
   else selectedItems.add(name);
-  document.querySelectorAll(`#shopping-list .item-card[data-name="${CSS.escape(name)}"]`)
+  const listId = lc().listId;
+  document.querySelectorAll(`#${listId} .item-card[data-name="${CSS.escape(name)}"]`)
     .forEach(c => c.classList.toggle('selected', selectedItems.has(name)));
   updateSelectionBar();
 }
 
 function updateSelectionBar() {
-  document.getElementById('select-count-label').textContent = t('selected', selectedItems.size);
-  document.getElementById('delete-selected-btn').disabled = selectedItems.size === 0;
+  document.getElementById(lc().countId).textContent = t('selected', selectedItems.size);
+  document.getElementById(lc().deleteSelId).disabled = selectedItems.size === 0;
 }
 
 // ─── In-cart checked state ────────────────────────────────────────────────────
 
 function toggleChecked(name) {
-  if (checkedItems.has(name)) checkedItems.delete(name);
-  else checkedItems.add(name);
+  const checked = ls().checked;
+  if (checked.has(name)) checked.delete(name);
+  else checked.add(name);
   saveChecked();
-  document.querySelectorAll(`#shopping-list .item-card[data-name="${CSS.escape(name)}"]`)
-    .forEach(c => c.classList.toggle('item-checked', checkedItems.has(name)));
+  const listId = lc().listId;
+  document.querySelectorAll(`#${listId} .item-card[data-name="${CSS.escape(name)}"]`)
+    .forEach(c => c.classList.toggle('item-checked', checked.has(name)));
 }
 
 // ─── DOM helpers ──────────────────────────────────────────────────────────────
 
 function checkEmptyList() {
-  const list = document.getElementById('shopping-list');
-  if (!list.querySelector('.swipe-wrap')) {
-    list.innerHTML = `<li class="empty-item">${t('noItems')}</li>`;
+  const el = listEl();
+  if (!el.querySelector('.swipe-wrap')) {
+    el.innerHTML = `<li class="empty-item">${t(lc().emptyKey)}</li>`;
   }
 }
 
 function removeWrapFromDOM(name) {
-  document.querySelector(`#shopping-list .swipe-wrap[data-name="${CSS.escape(name)}"]`)?.remove();
+  const listId = lc().listId;
+  document.querySelector(`#${listId} .swipe-wrap[data-name="${CSS.escape(name)}"]`)?.remove();
 }
 
-// Animate item out (height collapse) then remove from DOM + update state + call API
+// Animate item out then remove from DOM + update state + call API
 function removeItemOptimistic(name) {
-  const wrapEl = document.querySelector(`#shopping-list .swipe-wrap[data-name="${CSS.escape(name)}"]`);
+  const listId = lc().listId;
+  const wrapEl = document.querySelector(`#${listId} .swipe-wrap[data-name="${CSS.escape(name)}"]`);
   if (wrapEl) {
     const h = wrapEl.offsetHeight;
     wrapEl.style.height = h + 'px';
@@ -303,12 +372,12 @@ function removeItemOptimistic(name) {
       setTimeout(() => { wrapEl.remove(); checkEmptyList(); }, 220);
     });
   }
-  cachedItems = cachedItems.filter(i => i.name !== name);
-  checkedItems.delete(name);
+  ls().cached = ls().cached.filter(i => i.name !== name);
+  ls().checked.delete(name);
   saveChecked();
-  api('DELETE', '/api/shopping/' + encodeURIComponent(name)).catch(e => {
+  api('DELETE', lc().api + '/' + encodeURIComponent(name)).catch(e => {
     toast(e.message);
-    loadShopping();
+    loadList();
   });
 }
 
@@ -316,17 +385,17 @@ function removeItemOptimistic(name) {
 function deleteSelectedItems() {
   if (selectedItems.size === 0) return;
   const names = [...selectedItems];
+  const listId = lc().listId;
   exitSelectionMode();
 
-  // Lock heights before transition
   names.forEach(name => {
-    const el = document.querySelector(`#shopping-list .swipe-wrap[data-name="${CSS.escape(name)}"]`);
+    const el = document.querySelector(`#${listId} .swipe-wrap[data-name="${CSS.escape(name)}"]`);
     if (el) el.style.height = el.offsetHeight + 'px';
   });
 
   requestAnimationFrame(() => {
     names.forEach(name => {
-      const el = document.querySelector(`#shopping-list .swipe-wrap[data-name="${CSS.escape(name)}"]`);
+      const el = document.querySelector(`#${listId} .swipe-wrap[data-name="${CSS.escape(name)}"]`);
       if (!el) return;
       el.style.transition = 'opacity 0.15s ease, height 0.2s ease, margin-bottom 0.2s ease';
       el.style.opacity = '0';
@@ -336,13 +405,13 @@ function deleteSelectedItems() {
     setTimeout(() => {
       names.forEach(name => {
         removeWrapFromDOM(name);
-        cachedItems = cachedItems.filter(i => i.name !== name);
-        checkedItems.delete(name);
+        ls().cached = ls().cached.filter(i => i.name !== name);
+        ls().checked.delete(name);
       });
       saveChecked();
       checkEmptyList();
-      Promise.all(names.map(n => api('DELETE', '/api/shopping/' + encodeURIComponent(n))))
-        .catch(e => { toast(e.message); loadShopping(); });
+      Promise.all(names.map(n => api('DELETE', lc().api + '/' + encodeURIComponent(n))))
+        .catch(e => { toast(e.message); loadList(); });
     }, 220);
   });
 }
@@ -385,7 +454,6 @@ function initSwipe(wrapEl, name) {
     if (dx < -THRESHOLD) {
       committed = true;
       card.style.transform = `translateX(-${wrapEl.offsetWidth}px)`;
-      // After card slides out, collapse the row
       setTimeout(() => removeItemOptimistic(name), 220);
     } else {
       card.style.transform = '';
@@ -429,10 +497,10 @@ function initLongPress(wrapEl, onLongPress) {
   wrapEl.addEventListener('touchcancel', cancel);
 }
 
-// ─── Attach swipe + longpress to all rendered items ──────────────────────────
+// ─── Attach swipe + longpress ─────────────────────────────────────────────────
 
-function attachListBehaviors() {
-  document.getElementById('shopping-list').querySelectorAll('.swipe-wrap').forEach(wrapEl => {
+function attachListBehaviors(listKey) {
+  document.getElementById(LIST_CONFIG[listKey].listId).querySelectorAll('.swipe-wrap').forEach(wrapEl => {
     const name = wrapEl.dataset.name;
     initSwipe(wrapEl, name);
     initLongPress(wrapEl, () => {
@@ -442,74 +510,79 @@ function attachListBehaviors() {
   });
 }
 
-// Append a single new item to the list DOM without full re-render
-function appendItemToDOM(name) {
-  const list = document.getElementById('shopping-list');
-  list.querySelector('.empty-item')?.remove();
+// ─── Render a single item row ─────────────────────────────────────────────────
 
-  const li = document.createElement('li');
-  li.className = 'swipe-wrap';
-  li.dataset.name = name;
-  li.innerHTML = `
-    <div class="swipe-bg">${ICON_TRASH}</div>
-    <div class="item-card${checkedItems.has(name) ? ' item-checked' : ''}" data-name="${esc(name)}">
-      <span class="check-circle"></span>
-      <span class="item-name">${esc(name)}</span>
-      <button class="trash-btn" data-name="${esc(name)}">${ICON_TRASH}</button>
-    </div>
-  `;
-  list.appendChild(li);
-  initSwipe(li, name);
-  initLongPress(li, () => {
-    if (!selectionMode) enterSelectionMode();
-    toggleItemSelect(name);
-  });
-}
-
-// ─── Shopping list ─────────────────────────────────────────────────────────────
-
-async function loadShopping() {
-  try {
-    const items = await api('GET', '/api/shopping');
-    if (items === null) return;
-    cachedItems = items;
-    renderShopping(items);
-  } catch (e) { toast(e.message); }
-}
-
-function renderShopping(items) {
-  if (selectionMode) exitSelectionMode();
-  const list = document.getElementById('shopping-list');
-  if (items.length === 0) {
-    list.innerHTML = `<li class="empty-item">${t('noItems')}</li>`;
-    return;
-  }
-  list.innerHTML = items.map(item => `
+function buildItemLi(item, checked) {
+  const addedByLabel = item.addedBy && item.addedBy !== 'web'
+    ? `<span class="item-added-by">${esc(t('addedBy', item.addedBy.split('@')[0]))}</span>`
+    : '';
+  return `
     <li class="swipe-wrap" data-name="${esc(item.name)}">
       <div class="swipe-bg">${ICON_TRASH}</div>
-      <div class="item-card${checkedItems.has(item.name) ? ' item-checked' : ''}" data-name="${esc(item.name)}">
+      <div class="item-card${checked ? ' item-checked' : ''}" data-name="${esc(item.name)}">
         <span class="check-circle"></span>
-        <span class="item-name">${esc(item.name)}</span>
+        <div class="item-body">
+          <span class="item-name">${esc(item.name)}</span>
+          ${addedByLabel}
+        </div>
         <button class="trash-btn" data-name="${esc(item.name)}">${ICON_TRASH}</button>
       </div>
     </li>
-  `).join('');
-  attachListBehaviors();
+  `;
 }
 
-async function addItem() {
-  const input = document.getElementById('item-input');
-  const name = input.value.trim();
+// Append a single new item without full re-render
+function appendItemToDOM(item) {
+  const el = listEl();
+  el.querySelector('.empty-item')?.remove();
+  const tmp = document.createElement('ul');
+  tmp.innerHTML = buildItemLi(item, ls().checked.has(item.name));
+  const newLi = tmp.firstElementChild;
+  el.appendChild(newLi);
+  initSwipe(newLi, item.name);
+  initLongPress(newLi, () => {
+    if (!selectionMode) enterSelectionMode();
+    toggleItemSelect(item.name);
+  });
+}
+
+// ─── Shopping / Home list ─────────────────────────────────────────────────────
+
+async function loadList() {
+  const key = activeList;
+  try {
+    const items = await api('GET', LIST_CONFIG[key].api);
+    if (items === null) return;
+    listState[key].cached = items;
+    renderList(items, key);
+  } catch (e) { toast(e.message); }
+}
+
+function renderList(items, listKey) {
+  const cfg     = LIST_CONFIG[listKey];
+  const checked = listState[listKey].checked;
+  if (selectionMode) exitSelectionMode();
+  const el = document.getElementById(cfg.listId);
+  if (items.length === 0) {
+    el.innerHTML = `<li class="empty-item">${t(cfg.emptyKey)}</li>`;
+    return;
+  }
+  el.innerHTML = items.map(item => buildItemLi(item, checked.has(item.name))).join('');
+  attachListBehaviors(listKey);
+}
+
+async function addListItem() {
+  const input = document.getElementById(lc().inputId);
+  const name  = input.value.trim();
   if (!name) return;
   input.value = '';
-  // Optimistic: show immediately
-  cachedItems = [...cachedItems, { name }];
-  appendItemToDOM(name);
+  const item = { name, addedBy: currentUser?.email || 'web' };
+  ls().cached = [...ls().cached, item];
+  appendItemToDOM(item);
   try {
-    await api('POST', '/api/shopping', { name });
+    await api('POST', lc().api, { name });
   } catch (e) {
-    // Rollback
-    cachedItems = cachedItems.filter(i => i.name !== name);
+    ls().cached = ls().cached.filter(i => i.name !== name);
     removeWrapFromDOM(name);
     checkEmptyList();
     input.value = name;
@@ -518,14 +591,13 @@ async function addItem() {
 }
 
 async function clearList() {
-  const ok = await confirm(t('confirmClear'));
+  const ok = await confirm(t(lc().clearKey));
   if (!ok) return;
-  // Optimistic clear
-  cachedItems = [];
-  checkedItems.clear();
+  ls().cached = [];
+  ls().checked.clear();
   saveChecked();
-  document.getElementById('shopping-list').innerHTML = `<li class="empty-item">${t('noItems')}</li>`;
-  api('DELETE', '/api/shopping').catch(e => { toast(e.message); loadShopping(); });
+  listEl().innerHTML = `<li class="empty-item">${t(lc().emptyKey)}</li>`;
+  api('DELETE', lc().api).catch(e => { toast(e.message); loadList(); });
 }
 
 // ─── QR code ──────────────────────────────────────────────────────────────────
@@ -561,9 +633,9 @@ async function hideQR() {
 
 // ─── Vouchers ─────────────────────────────────────────────────────────────────
 
-const ICON_PENCIL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const ICON_PENCIL   = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const ICON_CHECK_SM = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-const ICON_X_SM = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+const ICON_X_SM     = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
 
 async function loadVouchers() {
   const container = document.getElementById('vouchers-list');
@@ -639,49 +711,29 @@ function renderVouchers(vouchers) {
   container._vouchers = vouchers;
 
   container.addEventListener('click', e => {
-    // Trash
     const trashBtn = e.target.closest('.v-trash-btn');
     if (trashBtn) { deleteVoucher(trashBtn.dataset.number); return; }
 
-    // Edit balance: open inline editor
     const editBtn = e.target.closest('.edit-balance-btn');
-    if (editBtn) {
-      const card = editBtn.closest('.voucher-card');
-      openBalanceEdit(card);
-      return;
-    }
+    if (editBtn) { openBalanceEdit(editBtn.closest('.voucher-card')); return; }
 
-    // Balance save
     const saveBtn = e.target.closest('.balance-save-btn');
-    if (saveBtn) {
-      const card = saveBtn.closest('.voucher-card');
-      commitBalanceEdit(card);
-      return;
-    }
+    if (saveBtn) { commitBalanceEdit(saveBtn.closest('.voucher-card')); return; }
 
-    // Balance cancel
     const cancelBtn = e.target.closest('.balance-cancel-btn');
-    if (cancelBtn) {
-      const card = cancelBtn.closest('.voucher-card');
-      closeBalanceEdit(card);
-      return;
-    }
+    if (cancelBtn) { closeBalanceEdit(cancelBtn.closest('.voucher-card')); return; }
 
-    // Tap card body → QR (only if not in an edit row)
     if (!e.target.closest('.balance-edit-row') && !e.target.closest('.edit-balance-btn')) {
       const card = e.target.closest('.voucher-card');
       if (card && container._vouchers) showQR(container._vouchers[+card.dataset.idx]);
     }
   });
 
-  // Enter key inside balance input = save
   container.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && e.target.classList.contains('balance-input')) {
+    if (e.key === 'Enter' && e.target.classList.contains('balance-input'))
       commitBalanceEdit(e.target.closest('.voucher-card'));
-    }
-    if (e.key === 'Escape' && e.target.classList.contains('balance-input')) {
+    if (e.key === 'Escape' && e.target.classList.contains('balance-input'))
       closeBalanceEdit(e.target.closest('.voucher-card'));
-    }
   });
 }
 
@@ -702,28 +754,20 @@ function closeBalanceEdit(card) {
 }
 
 async function commitBalanceEdit(card) {
-  const input   = card.querySelector('.balance-input');
-  const parsed  = parseFloat(input.value);
+  const input  = card.querySelector('.balance-input');
+  const parsed = parseFloat(input.value);
   if (isNaN(parsed) || parsed < 0) { toast('Enter a valid amount'); return; }
-  const number  = card.dataset.number;
-
-  // Optimistic update
+  const number = card.dataset.number;
   card.querySelector('.voucher-balance').textContent = '₪' + parsed.toLocaleString();
   closeBalanceEdit(card);
-
-  // Update in cached list
   const container = document.getElementById('vouchers-list');
   if (container._vouchers) {
     const v = container._vouchers.find(v => v.voucherNumber === number);
     if (v) v.balance = parsed;
   }
-
   try {
     await api('PATCH', `/api/vouchers/${encodeURIComponent(number)}/balance`, { balance: parsed });
-  } catch (e) {
-    toast(e.message);
-    loadVouchers();
-  }
+  } catch (e) { toast(e.message); loadVouchers(); }
 }
 
 async function addVoucher(form) {
@@ -764,6 +808,38 @@ function esc(str) {
     .replace(/"/g,  '&quot;');
 }
 
+// ─── Wire up a list pane's buttons ───────────────────────────────────────────
+
+function wireListPane(listKey) {
+  const cfg = LIST_CONFIG[listKey];
+
+  document.getElementById(cfg.addBtnId).addEventListener('click', addListItem);
+  document.getElementById(cfg.inputId).addEventListener('keydown', e => {
+    if (e.key === 'Enter') addListItem();
+  });
+
+  // Single permanent click handler for the list element
+  document.getElementById(cfg.listId).addEventListener('click', e => {
+    if (!e.target.closest('.swipe-wrap')) return;
+
+    if (selectionMode) {
+      const card = e.target.closest('.item-card');
+      if (card) toggleItemSelect(card.dataset.name);
+      return;
+    }
+
+    const trashBtn = e.target.closest('.trash-btn');
+    if (trashBtn) { removeItemOptimistic(trashBtn.dataset.name); return; }
+
+    const card = e.target.closest('.item-card');
+    if (card) toggleChecked(card.dataset.name);
+  });
+
+  document.getElementById(cfg.clearBtnId).addEventListener('click', clearList);
+  document.getElementById(cfg.cancelSelId).addEventListener('click', exitSelectionMode);
+  document.getElementById(cfg.deleteSelId).addEventListener('click', deleteSelectedItems);
+}
+
 // ─── Entry point ──────────────────────────────────────────────────────────────
 
 async function initApp() {
@@ -793,34 +869,9 @@ async function initApp() {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
 
-  document.getElementById('add-item-btn').addEventListener('click', addItem);
-  document.getElementById('item-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') addItem();
-  });
+  wireListPane('grocery');
+  wireListPane('home');
 
-  // Single permanent click handler — no { once: true }, no re-registration on re-renders
-  document.getElementById('shopping-list').addEventListener('click', e => {
-    if (!e.target.closest('.swipe-wrap')) return;
-
-    if (selectionMode) {
-      const card = e.target.closest('.item-card');
-      if (card) toggleItemSelect(card.dataset.name);
-      return;
-    }
-
-    const trashBtn = e.target.closest('.trash-btn');
-    if (trashBtn) {
-      removeItemOptimistic(trashBtn.dataset.name);
-      return;
-    }
-
-    const card = e.target.closest('.item-card');
-    if (card) toggleChecked(card.dataset.name);
-  });
-
-  document.getElementById('clear-btn').addEventListener('click', clearList);
-  document.getElementById('cancel-select-btn').addEventListener('click', exitSelectionMode);
-  document.getElementById('delete-selected-btn').addEventListener('click', deleteSelectedItems);
   document.getElementById('refresh-btn').addEventListener('click', refreshVouchers);
   document.getElementById('add-voucher-form').addEventListener('submit', e => {
     e.preventDefault();

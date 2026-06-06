@@ -24,7 +24,6 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
 
             input.startsWith("get voucher ") || input.startsWith("שובר ") -> {
                 val provider = body.split(" ").last()
-                // ENSURE THIS IS THE LAST LINE IN THIS BLOCK
                 voucherService.getVouchers(provider)
             }
 
@@ -58,25 +57,25 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
     }
 
     private fun formatList(): String {
-        val items = repository.findAll()
-        return if (items.none()) {
-            "The list is empty! \uD83C\uDFE0"
+        val items = repository.findAllGrocery()
+        return if (items.isEmpty()) {
+            "The list is empty! 🏠"
         } else {
             "🛒 *Current Shopping List:*\n" + items.joinToString("\n") { "- ${it.name}" }
         }
     }
 
     private fun clearList(): String {
-        repository.deleteAll()
-        return "List cleared! \u2705"
+        repository.deleteAllGrocery()
+        return "List cleared! ✅"
     }
 
     private fun addItem(name: String, addedBy: String): String {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) return ""
-        val existingItem = repository.findByNameIgnoreCase(trimmedName)
+        val existingItem = repository.findGroceryByName(trimmedName)
         return if (existingItem != null) {
-            "-$trimmedName (already in list \uD83E\uDD14)"
+            "-$trimmedName (already in list 🤔)"
         } else {
             repository.save(ShoppingItem(name = trimmedName, addedBy = addedBy))
             "Added *$trimmedName* 📝"
@@ -85,11 +84,11 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
 
     private fun removeItem(itemName: String): String {
         val name = itemName.trim()
-        val item = repository.findByNameIgnoreCase(name)
+        val item = repository.findGroceryByName(name)
         if (item == null) {
-            return "Item *$name* not found. \uD83E\uDD14"
+            return "Item *$name* not found. 🤔"
         }
-        repository.deleteByNameIgnoreCase(name)
+        repository.deleteGroceryByName(name)
         return "Removed *$name* from the list. ✅"
     }
 
@@ -100,8 +99,8 @@ class ShoppingService (private val repository: ShoppingRepository, private val v
         • *list* or *רשימה* : View list / הצגת הרשימה
         • *קניתי/מחק/הסר <item>* : Remove item / מחיקת פריט
         • *clear* or *נקה* : Delete all / ניקוי רשימה
-        
-        *🎫 Vouchers / שוברים*
+
+        *🎟️ Vouchers / שוברים*
         • *add voucher <provider> <number> <expiry> <balance> <amount>*
         • *הוסף שובר <חברה> <מספר> <תוקף> <יתרה> <סכום מקור>*
         • *vouchers* or *שוברים* : Show all / כל השוברים
