@@ -1,5 +1,7 @@
 package com.myhome.shoppingbot.Controller
 
+import com.myhome.shoppingbot.Data.AppUser
+import com.myhome.shoppingbot.Repository.AppUserRepository
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.ResponseEntity
@@ -10,6 +12,7 @@ import org.springframework.web.client.RestTemplate
 @RequestMapping("/api/auth")
 class AuthController(
     private val restTemplate: RestTemplate,
+    private val appUserRepository: AppUserRepository,
     @Value("\${ALLOWED_EMAILS:}") private val allowedEmailsStr: String,
     @Value("\${VOUCHER_EMAILS:}") private val voucherEmailsStr: String
 ) {
@@ -27,10 +30,11 @@ class AuthController(
         val session = request.getSession(false)
         val email = session?.getAttribute("email") as? String
             ?: return ResponseEntity.status(401).body(mapOf("error" to "Not logged in"))
-        // Old sessions without the attribute default to true (backward compatible)
         val canViewVouchers = session.getAttribute("canViewVouchers") as? Boolean ?: true
+        val alias = session.getAttribute("alias") as? String ?: email.substringBefore('@')
         return ResponseEntity.ok(mapOf(
             "email"           to email,
+            "alias"           to alias,
             "name"            to (session.getAttribute("name") as? String ?: ""),
             "picture"         to (session.getAttribute("picture") as? String ?: ""),
             "canViewVouchers" to canViewVouchers
@@ -61,15 +65,24 @@ class AuthController(
 
             val canViewVouchers = voucherEmails.isEmpty() || email in voucherEmails
 
+            // Find or create user record; use Google name as default alias
+            val googleName = (tokenInfo["given_name"] as? String)
+                ?: (tokenInfo["name"] as? String)?.substringBefore(' ')
+                ?: email.substringBefore('@')
+            val appUser = appUserRepository.findByEmail(email)
+                ?: appUserRepository.save(AppUser(email = email, alias = googleName))
+
             val session = request.getSession(true)
             session.maxInactiveInterval = 30 * 24 * 60 * 60
             session.setAttribute("email",           email)
+            session.setAttribute("alias",           appUser.alias)
             session.setAttribute("name",            tokenInfo["name"] as? String ?: "")
             session.setAttribute("picture",         tokenInfo["picture"] as? String ?: "")
             session.setAttribute("canViewVouchers", canViewVouchers)
 
             ResponseEntity.ok(mapOf(
                 "email"           to email,
+                "alias"           to appUser.alias,
                 "name"            to (tokenInfo["name"] as? String ?: ""),
                 "picture"         to (tokenInfo["picture"] as? String ?: ""),
                 "canViewVouchers" to canViewVouchers

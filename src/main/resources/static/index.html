@@ -35,7 +35,9 @@
       <span id="header-title">Family App</span>
       <div class="header-right">
         <button id="lang-btn" class="icon-btn">עב</button>
-        <img id="user-avatar" src="" alt="" class="avatar">
+        <button id="profile-btn" class="avatar-btn" aria-label="Edit profile">
+          <img id="user-avatar" src="" alt="" class="avatar">
+        </button>
         <button id="signout-btn" class="icon-btn" aria-label="Sign out">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
@@ -132,6 +134,26 @@
         </button>
       </div>
       <div id="vouchers-list"></div>
+    </div>
+  </div>
+
+  <!-- Profile modal -->
+  <div id="profile-modal" class="modal-overlay hidden">
+    <div class="modal-sheet">
+      <div class="modal-header">
+        <span class="modal-title" data-key="profileTitle">My Profile</span>
+        <button id="profile-close-btn" class="qr-close" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" data-key="aliasLabel">Display name</label>
+        <input id="profile-alias" type="text" class="modal-input" autocomplete="off">
+        <label class="field-label" data-key="phoneLabel">WhatsApp number</label>
+        <input id="profile-phone" type="tel" class="modal-input" placeholder="+972501234567" autocomplete="off">
+        <p class="field-hint" data-key="phoneHint">Links your WhatsApp messages to your name</p>
+        <button id="profile-save-btn" class="primary-btn" data-key="save">Save</button>
+      </div>
     </div>
   </div>
 

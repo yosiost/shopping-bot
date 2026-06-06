@@ -39,7 +39,12 @@ const T = {
     selected:          (n) => `${n} selected`,
     daysLeft:          (n) => `${n}d left`,
     expires:           (d) => `Expires ${d}`,
-    addedBy:           (name) => `added by ${name}`,
+    addedBy:           (name) => `by ${name}`,
+    profileTitle:      'My Profile',
+    aliasLabel:        'Display name',
+    phoneLabel:        'WhatsApp number',
+    phoneHint:         'Links your WhatsApp messages to your name',
+    profileSaved:      'Profile saved',
   },
   he: {
     appTitle:          'אפליקציה משפחתית',
@@ -73,7 +78,12 @@ const T = {
     selected:          (n) => `${n} נבחרו`,
     daysLeft:          (n) => `${n} ימים`,
     expires:           (d) => `תפוגה ${d}`,
-    addedBy:           (name) => `נוסף ע"י ${name}`,
+    addedBy:           (name) => `ע"י ${name}`,
+    profileTitle:      'הפרופיל שלי',
+    aliasLabel:        'שם תצוגה',
+    phoneLabel:        'מספר וואטסאפ',
+    phoneHint:         'מקשר הודעות וואטסאפ לשמך',
+    profileSaved:      'הפרופיל נשמר',
   },
 };
 
@@ -513,8 +523,9 @@ function attachListBehaviors(listKey) {
 // ─── Render a single item row ─────────────────────────────────────────────────
 
 function buildItemLi(item, checked) {
-  const addedByLabel = item.addedBy && item.addedBy !== 'web'
-    ? `<span class="item-added-by">${esc(t('addedBy', item.addedBy.split('@')[0]))}</span>`
+  const alias = item.addedByAlias || '';
+  const addedByLabel = alias && alias !== 'web'
+    ? `<span class="item-added-by">${esc(t('addedBy', alias))}</span>`
     : '';
   return `
     <li class="swipe-wrap" data-name="${esc(item.name)}">
@@ -629,6 +640,36 @@ async function showQR(voucher) {
 async function hideQR() {
   document.getElementById('qr-modal').classList.add('hidden');
   if (wakeLock) { try { await wakeLock.release(); } catch (_) {} wakeLock = null; }
+}
+
+// ─── Profile modal ────────────────────────────────────────────────────────────
+
+async function openProfile() {
+  try {
+    const profile = await api('GET', '/api/users/me');
+    if (!profile) return;
+    document.getElementById('profile-alias').value = profile.alias || '';
+    document.getElementById('profile-phone').value = profile.phoneNumber || '';
+  } catch (_) {}
+  applyLang(); // refresh data-key labels
+  document.getElementById('profile-modal').classList.remove('hidden');
+}
+
+function closeProfile() {
+  document.getElementById('profile-modal').classList.add('hidden');
+}
+
+async function saveProfile() {
+  const alias = document.getElementById('profile-alias').value.trim();
+  const phone = document.getElementById('profile-phone').value.trim();
+  if (!alias) { toast('Display name cannot be empty'); return; }
+  try {
+    await api('PATCH', '/api/users/me', { alias, phoneNumber: phone || null });
+    toast(t('profileSaved'));
+    closeProfile();
+    // Reload current list to reflect updated alias
+    if (currentTab !== 'vouchers') loadList();
+  } catch (e) { toast(e.message); }
 }
 
 // ─── Vouchers ─────────────────────────────────────────────────────────────────
@@ -863,6 +904,13 @@ async function initApp() {
     await api('POST', '/api/auth/logout');
     if (window.google) google.accounts.id.disableAutoSelect();
     showAuth();
+  });
+
+  document.getElementById('profile-btn').addEventListener('click', openProfile);
+  document.getElementById('profile-close-btn').addEventListener('click', closeProfile);
+  document.getElementById('profile-save-btn').addEventListener('click', saveProfile);
+  document.getElementById('profile-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('profile-modal')) closeProfile();
   });
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
