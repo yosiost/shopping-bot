@@ -82,16 +82,32 @@ class AppController(
         }
     }
 
+    @PatchMapping("/vouchers/{number}/balance")
+    fun updateVoucherBalance(
+        @PathVariable number: String,
+        @RequestBody req: UpdateBalanceRequest,
+        request: HttpServletRequest
+    ): ResponseEntity<Any> {
+        if (!voucherAccess(request)) return ResponseEntity.status(403).body(mapOf("error" to "Access denied"))
+        val voucher = voucherRepository.findActiveByVoucherNumber(number)
+            ?: return ResponseEntity.notFound().build()
+        voucher.balance = req.balance
+        return ResponseEntity.ok(voucherRepository.save(voucher))
+    }
+
     @DeleteMapping("/vouchers/{number}")
     fun deleteVoucher(@PathVariable number: String, request: HttpServletRequest): ResponseEntity<Any> {
         if (!voucherAccess(request)) return ResponseEntity.status(403).body(mapOf("error" to "Access denied"))
-        voucherRepository.findByVoucherNumber(number) ?: return ResponseEntity.notFound().build()
-        voucherRepository.deleteByVoucherNumber(number)
+        val voucher = voucherRepository.findActiveByVoucherNumber(number)
+            ?: return ResponseEntity.notFound().build()
+        voucher.deleted = true
+        voucherRepository.save(voucher)
         return ResponseEntity.ok().build()
     }
 }
 
 data class AddItemRequest(val name: String)
+data class UpdateBalanceRequest(val balance: Double)
 data class AddVoucherRequest(
     val voucherNumber: String,
     val provider:      String,

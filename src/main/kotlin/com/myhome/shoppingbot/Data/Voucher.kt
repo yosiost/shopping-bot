@@ -6,7 +6,10 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Entity
 import jakarta.persistence.Table
+import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.UpdateTimestamp
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 @Entity
 @Table(name = "vouchers")
@@ -20,5 +23,11 @@ data class Voucher(
     var balance: Double,
     val expiryDate: LocalDate,
     val vendor: String? = null,
-    val remarks: String? = null
+    val remarks: String? = null,
+    // Soft delete — null means legacy row (treat as not deleted)
+    var deleted: Boolean? = null,
+    @CreationTimestamp
+    var createdAt: LocalDateTime? = null,
+    @UpdateTimestamp
+    var modifiedAt: LocalDateTime? = null
 )

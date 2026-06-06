@@ -35,7 +35,7 @@ class NotificationService (
         val today = LocalDate.now()
         val oneMonthFromNow = today.plusMonths(1)
 
-        val expiringVouchers = voucherRepository.findByBalanceGreaterThan(0.0)
+        val expiringVouchers = voucherRepository.findActiveByBalanceGreaterThan(0.0)
             .filter { it.expiryDate.isAfter(today.minusDays(1)) && it.expiryDate.isBefore(oneMonthFromNow) }
 
         if (expiringVouchers.isNotEmpty()) {

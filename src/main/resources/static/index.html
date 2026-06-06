@@ -6,12 +6,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Family">
-  <meta name="theme-color" content="#E07A3A">
+  <meta name="theme-color" content="#7C3AED">
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Lora:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <title>Family App</title>
 </head>
@@ -81,18 +81,13 @@
 
     <!-- Vouchers tab -->
     <div id="pane-vouchers" class="pane hidden">
-      <div class="voucher-toolbar">
-        <button id="refresh-btn" class="secondary-btn">
-          <span id="refresh-icon">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-          </span>
-          <span data-key="refreshBalances">Refresh balances</span>
-        </button>
-      </div>
-      <div id="vouchers-list"></div>
-      <div class="pane-footer">
-        <details id="add-voucher-details">
-          <summary data-key="addVoucher">+ Add voucher</summary>
+      <!-- Add voucher (top) + Refresh -->
+      <div class="voucher-top-bar">
+        <details id="add-voucher-details" class="add-voucher-card">
+          <summary>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span data-key="addVoucher">Add voucher</span>
+          </summary>
           <form id="add-voucher-form" class="voucher-form">
             <input name="provider" type="text" data-placeholder-key="provider" placeholder="Provider" required>
             <input name="voucherNumber" type="text" data-placeholder-key="voucherNumber" placeholder="Voucher number" required>
@@ -103,7 +98,13 @@
             <button type="submit" class="primary-btn" data-key="save">Save</button>
           </form>
         </details>
+        <button id="refresh-btn" class="icon-btn refresh-icon-btn" title="Refresh balances">
+          <span id="refresh-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          </span>
+        </button>
       </div>
+      <div id="vouchers-list"></div>
     </div>
   </div>
 

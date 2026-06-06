@@ -561,9 +561,13 @@ async function hideQR() {
 
 // ─── Vouchers ─────────────────────────────────────────────────────────────────
 
+const ICON_PENCIL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const ICON_CHECK_SM = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+const ICON_X_SM = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
 async function loadVouchers() {
   const container = document.getElementById('vouchers-list');
-  container.innerHTML = '<div style="padding:40px 16px;text-align:center;color:var(--muted);font-size:15px;">Loading…</div>';
+  container.innerHTML = `<div style="padding:48px 16px;text-align:center;color:var(--muted);font-size:15px;font-weight:500;">Loading…</div>`;
   try {
     const vouchers = await api('GET', '/api/vouchers');
     if (vouchers === null) return;
@@ -574,13 +578,13 @@ async function loadVouchers() {
 async function refreshVouchers() {
   const btn  = document.getElementById('refresh-btn');
   const icon = document.getElementById('refresh-icon');
-  btn.classList.add('loading');
+  btn.disabled = true;
   icon.classList.add('spinning');
   try {
     const vouchers = await api('POST', '/api/vouchers/refresh');
     if (vouchers) renderVouchers(vouchers);
   } catch (e) { toast(e.message); }
-  finally { btn.classList.remove('loading'); icon.classList.remove('spinning'); }
+  finally { btn.disabled = false; icon.classList.remove('spinning'); }
 }
 
 function expiryClass(dateStr) {
@@ -594,30 +598,39 @@ function expiryClass(dateStr) {
 function renderVouchers(vouchers) {
   const container = document.getElementById('vouchers-list');
   if (vouchers.length === 0) {
-    container.innerHTML = `<div style="padding:40px 16px;text-align:center;color:var(--muted);font-size:15px;">${t('noVouchers')}</div>`;
+    container.innerHTML = `<div style="padding:48px 16px;text-align:center;color:var(--muted);font-size:15px;font-weight:500;">${t('noVouchers')}</div>`;
     return;
   }
   container.innerHTML = vouchers.map((v, idx) => {
     const cls  = expiryClass(v.expiryDate);
     const days = Math.ceil((new Date(v.expiryDate) - new Date()) / 86400000);
     return `
-      <div class="voucher-card ${cls.card}" data-idx="${idx}">
+      <div class="voucher-card ${cls.card}" data-idx="${idx}" data-number="${esc(v.voucherNumber)}">
         <div class="voucher-header">
-          <div>
+          <div style="flex:1;min-width:0;">
             <div class="voucher-provider">${esc(v.provider)}</div>
-            <div class="voucher-balance">₪${v.balance.toLocaleString()}</div>
+            <div class="balance-row">
+              <span class="voucher-balance">₪${v.balance.toLocaleString()}</span>
+              <button class="edit-balance-btn" title="Edit balance">${ICON_PENCIL}</button>
+              <div class="balance-edit-row hidden">
+                <input class="balance-input" type="number" step="0.01" min="0" value="${v.balance}">
+                <button class="balance-save-btn">${ICON_CHECK_SM}</button>
+                <button class="balance-cancel-btn">${ICON_X_SM}</button>
+              </div>
+            </div>
           </div>
           <div class="voucher-actions">
             <span class="expiry-badge ${cls.badge}">${t('daysLeft', days)}</span>
             <button class="v-trash-btn" data-number="${esc(v.voucherNumber)}">${ICON_TRASH}</button>
           </div>
         </div>
+        <div class="voucher-divider"></div>
         <div class="voucher-meta">${t('expires', v.expiryDate)}${v.vendor ? ' · ' + esc(v.vendor) : ''}</div>
         <div class="voucher-number">${esc(v.voucherNumber)}</div>
         ${v.remarks ? `<div class="voucher-remarks">${esc(v.remarks)}</div>` : ''}
         <div class="voucher-tap-hint">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="18" width="3" height="3"/></svg>
-          Tap for QR code
+          Tap card for QR code
         </div>
       </div>
     `;
@@ -626,11 +639,91 @@ function renderVouchers(vouchers) {
   container._vouchers = vouchers;
 
   container.addEventListener('click', e => {
+    // Trash
     const trashBtn = e.target.closest('.v-trash-btn');
     if (trashBtn) { deleteVoucher(trashBtn.dataset.number); return; }
-    const card = e.target.closest('.voucher-card');
-    if (card && container._vouchers) showQR(container._vouchers[+card.dataset.idx]);
+
+    // Edit balance: open inline editor
+    const editBtn = e.target.closest('.edit-balance-btn');
+    if (editBtn) {
+      const card = editBtn.closest('.voucher-card');
+      openBalanceEdit(card);
+      return;
+    }
+
+    // Balance save
+    const saveBtn = e.target.closest('.balance-save-btn');
+    if (saveBtn) {
+      const card = saveBtn.closest('.voucher-card');
+      commitBalanceEdit(card);
+      return;
+    }
+
+    // Balance cancel
+    const cancelBtn = e.target.closest('.balance-cancel-btn');
+    if (cancelBtn) {
+      const card = cancelBtn.closest('.voucher-card');
+      closeBalanceEdit(card);
+      return;
+    }
+
+    // Tap card body → QR (only if not in an edit row)
+    if (!e.target.closest('.balance-edit-row') && !e.target.closest('.edit-balance-btn')) {
+      const card = e.target.closest('.voucher-card');
+      if (card && container._vouchers) showQR(container._vouchers[+card.dataset.idx]);
+    }
   });
+
+  // Enter key inside balance input = save
+  container.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.classList.contains('balance-input')) {
+      commitBalanceEdit(e.target.closest('.voucher-card'));
+    }
+    if (e.key === 'Escape' && e.target.classList.contains('balance-input')) {
+      closeBalanceEdit(e.target.closest('.voucher-card'));
+    }
+  });
+}
+
+function openBalanceEdit(card) {
+  card.querySelector('.voucher-balance').classList.add('hidden');
+  card.querySelector('.edit-balance-btn').classList.add('hidden');
+  const editRow = card.querySelector('.balance-edit-row');
+  editRow.classList.remove('hidden');
+  const input = editRow.querySelector('.balance-input');
+  input.focus();
+  input.select();
+}
+
+function closeBalanceEdit(card) {
+  card.querySelector('.voucher-balance').classList.remove('hidden');
+  card.querySelector('.edit-balance-btn').classList.remove('hidden');
+  card.querySelector('.balance-edit-row').classList.add('hidden');
+}
+
+async function commitBalanceEdit(card) {
+  const input   = card.querySelector('.balance-input');
+  const parsed  = parseFloat(input.value);
+  if (isNaN(parsed) || parsed < 0) { toast('Enter a valid amount'); return; }
+  const number  = card.dataset.number;
+
+  // Optimistic update
+  card.querySelector('.voucher-balance').textContent = '₪' + parsed.toLocaleString();
+  closeBalanceEdit(card);
+
+  // Update in cached list
+  const container = document.getElementById('vouchers-list');
+  if (container._vouchers) {
+    const v = container._vouchers.find(v => v.voucherNumber === number);
+    if (v) v.balance = parsed;
+  }
+
+  try {
+    await api('PATCH', `/api/vouchers/${encodeURIComponent(number)}/balance`, { balance: parsed });
+  } catch (e) {
+    toast(e.message);
+    loadVouchers();
+  }
 }
 
 async function addVoucher(form) {
