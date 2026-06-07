@@ -57,7 +57,8 @@ class AuthController(
             val email = tokenInfo["email"] as? String
                 ?: return ResponseEntity.status(401).body(mapOf("error" to "No email in token"))
 
-            if ((tokenInfo["email_verified"] as? String) != "true")
+            val ev = tokenInfo["email_verified"]
+            if (ev != true && ev != "true")
                 return ResponseEntity.status(401).body(mapOf("error" to "Email not verified"))
 
             if (allowedEmails.isNotEmpty() && email !in allowedEmails)

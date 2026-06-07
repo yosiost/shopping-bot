@@ -3,7 +3,7 @@ import { useApp } from '../App.jsx';
 import { api } from '../api.js';
 
 export default function AuthScreen({ googleClientId, onSignIn }) {
-  const { t } = useApp();
+  const { t, toast } = useApp();
 
   useEffect(() => {
     if (!googleClientId) return;
@@ -16,11 +16,13 @@ export default function AuthScreen({ googleClientId, onSignIn }) {
           try {
             const user = await api('POST', '/api/auth/login', { idToken: response.credential });
             if (user) onSignIn(user);
+            else toast(t('signInFailed'));
           } catch (e) {
             console.error('Sign-in failed:', e);
+            toast(t('signInFailed'));
           }
         },
-        auto_select: true,
+        auto_select: false,
       });
       window.google.accounts.id.renderButton(
         document.getElementById('signin-button'),
