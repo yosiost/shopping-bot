@@ -89,10 +89,6 @@ export default function VoucherCard({ voucher: v, onQR, onDelete, onUpdateBalanc
         <div className="vc-tap-hint">
           <QRIcon /> Tap card for QR code
         </div>
-        {/* Apple Wallet button — requires backend .pkpass generation */}
-        {/* <button className="vc-wallet-btn" onClick={e => { e.stopPropagation(); /* TODO */ }}>
-          <WalletIcon /> Add to Wallet
-        </button> */}
       </div>
     </div>
   );
