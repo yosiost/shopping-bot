@@ -1,5 +1,10 @@
 # Step 1: Build the application
 FROM eclipse-temurin:21-jdk-jammy AS build
+RUN apt-get update && \
+    apt-get install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
 COPY . .
 RUN ./gradlew clean build -x test
 

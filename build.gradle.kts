@@ -61,3 +61,35 @@ allOpen {
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
+
+// ─── Frontend build ───────────────────────────────────────────────────────────
+
+val isWindows = System.getProperty("os.name").lowercase().contains("windows")
+val npm = if (isWindows) "npm.cmd" else "npm"
+
+// Copy icons from existing static dir into Vite's public folder so they survive emptyOutDir
+tasks.register<Copy>("syncFrontendIcons") {
+	from("src/main/resources/static/icons")
+	into("frontend/public/icons")
+}
+
+tasks.register<Exec>("npmInstall") {
+	workingDir(project.file("frontend"))
+	commandLine(npm, "install")
+	inputs.file("frontend/package.json")
+	outputs.dir("frontend/node_modules")
+}
+
+tasks.register<Exec>("buildFrontend") {
+	dependsOn("syncFrontendIcons", "npmInstall")
+	workingDir(project.file("frontend"))
+	commandLine(npm, "run", "build")
+	inputs.dir("frontend/src")
+	inputs.file("frontend/package.json")
+	inputs.file("frontend/vite.config.js")
+	outputs.dir("src/main/resources/static")
+}
+
+tasks.named("processResources") {
+	dependsOn("buildFrontend")
+}
