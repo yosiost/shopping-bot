@@ -9,7 +9,7 @@ Send "milk" to a WhatsApp number and it lands on a shared list your household ca
 - **WhatsApp bot** — add/remove items and check the list via WhatsApp messages (powered by Twilio).
 - **Web app (PWA)** — a installable, mobile-first React app for the same shared lists, with Google Sign-In.
 - **Two lists** — separate "Shopping" and "Home" item lists.
-- **Gift voucher tracker** — store voucher numbers/balances and auto-refresh balances from supported Israeli providers (BuyMe, KsharimPlus, Praxell).
+- **Gift voucher tracker** — store voucher numbers/balances and auto-refresh balances. Balance auto-refresh is currently wired to three **Israeli** gift-card providers (BuyMe, KsharimPlus, Praxell); outside Israel this part won't find a match, but manual balance entry still works fine.
 - **Expiry reminders** — a daily scheduled job WhatsApps a summary of vouchers expiring within a month.
 - **Access control** — restrict login to an allow-list of email addresses; a separate allow-list can gate who sees the voucher tab.
 - **Persistent sessions** — sessions are stored in the database so a server restart doesn't log anyone out.
@@ -36,19 +36,42 @@ Browser ──▶ React PWA ──▶ /api/* ───────────�
 
 The backend serves the compiled React app as static resources and exposes a JSON API under `/api/*`, plus a WhatsApp webhook at `/whatsapp`. Auth is session-cookie based; `AuthInterceptor` guards every `/api/*` route except `/api/auth/*` and `/api/config`.
 
+## Quickstart
+
+The bare minimum to see the web app running locally (WhatsApp bot setup is separate, see below):
+
+1. Create a Google OAuth Client ID — [Setting up Google Sign-In](#setting-up-google-sign-in) takes two minutes.
+2. `export GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com`
+3. `./gradlew bootRun`
+4. Open `http://localhost:8080` and sign in.
+
+That's it — Gradle builds the React frontend and starts the backend in one command (see [Running locally](#running-locally)), and the database is a local file with zero setup. Everything else in this README (Twilio, Postgres, allow-lists, deployment) is optional depending on what you need.
+
 ## Prerequisites
 
 - JDK 21
-- Node.js 20+ (for building the frontend)
-- A Twilio account with WhatsApp sending enabled (for the bot)
-- A Google Cloud OAuth 2.0 Client ID (for web login)
-- A Postgres database — only for production/deployment. Local dev needs nothing: it falls back to an embedded H2 file DB. [Neon](https://neon.tech) has a free tier that works well for this.
+- Node.js 20+ (only needed if you run `npm` commands directly — `./gradlew bootRun` installs and builds the frontend for you)
+- A Google Cloud OAuth 2.0 Client ID (for web login — required even for local dev)
+- A Twilio account with WhatsApp sending enabled (only if you want the WhatsApp bot)
+- A Postgres database (only for production/deployment — local dev falls back to an embedded H2 file DB). [Neon](https://neon.tech) has a free tier that works well for this.
 
-## Database: H2 locally, Postgres in production
+## Setting up Google Sign-In
 
-`application.properties` defaults to a zero-config, file-based **H2** database (`data/shopping_db.mv.db`) — this is what runs when you `bootRun` locally with no extra setup, and it's gitignored so nothing local ever gets committed again.
+Required even for local dev — the web app has no login without it.
 
-For a real deployment, point `SPRING_DATASOURCE_URL` (plus `SPRING_DATASOURCE_USERNAME`/`SPRING_DATASOURCE_PASSWORD`) at a Postgres instance — these are standard Spring Boot environment variables and take priority over the H2 settings in `application.properties` automatically, no code changes needed. The `org.postgresql:postgresql` driver is already a dependency. This is how the original deployment runs, using a free [Neon](https://neon.tech) Postgres instance on Render.
+1. Create an OAuth 2.0 Client ID (Web application) in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+2. Add your local (`http://localhost:8080`) and deployed origins to **Authorized JavaScript origins**.
+3. Set `GOOGLE_CLIENT_ID` to that client ID. The frontend fetches it at runtime from `/api/config` — no rebuild needed when it changes.
+
+## Setting up the WhatsApp bot
+
+Optional — the web app works without this.
+
+1. Create a [Twilio](https://www.twilio.com/) account and enable the WhatsApp Sandbox (or a production WhatsApp sender).
+2. Point the Twilio WhatsApp webhook (Sandbox settings, or your sender's config) at `https://<your-deployed-host>/whatsapp`.
+3. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, and `NOTIFICATION_RECIPIENT`.
+
+**Testing this locally:** Twilio's webhook needs to reach your machine over the public internet — `localhost:8080` won't work. Use a tunnel like [ngrok](https://ngrok.com/) (`ngrok http 8080`) and point the Twilio webhook at the `https://*.ngrok-free.app/whatsapp` URL it gives you while you're testing. For everyday use, point Twilio at your real deployment instead.
 
 ## Environment variables
 
@@ -75,48 +98,29 @@ The app boots and the web UI works without the Twilio variables set — the What
 
 ## Running locally
 
-1. **Backend**
+```bash
+export GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+# optionally: ALLOWED_EMAILS, TWILIO_*, NOTIFICATION_RECIPIENT, etc.
+./gradlew bootRun
+```
 
-   ```bash
-   export GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-   # optionally: ALLOWED_EMAILS, TWILIO_*, NOTIFICATION_RECIPIENT, etc.
-   ./gradlew bootRun
-   ```
+That single command installs frontend dependencies, builds the React app into `src/main/resources/static`, and starts the backend — Gradle's `processResources` task depends on a `buildFrontend` task that runs `npm install` + `vite build` for you (see `build.gradle.kts`). The app is served at `http://localhost:8080`; there's nothing else to build or wire up manually.
 
-   The API and (once built, see below) the web app are served at `http://localhost:8080`.
+**Optional: frontend hot-reload for UI work.** If you're iterating on the React app itself, run a separate dev server instead of rebuilding via Gradle on every change:
 
-2. **Frontend (dev mode with hot reload)**
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
+This runs Vite on `http://localhost:5173` and proxies `/api/*` requests to the backend, so keep a `./gradlew bootRun` running on port 8080 alongside it.
 
-   This runs Vite on `http://localhost:5173` and proxies `/api/*` requests to the backend on port 8080 (see `frontend/vite.config.js`), so run the backend alongside it.
+## Database: H2 locally, Postgres in production
 
-3. **Building the frontend for the backend to serve**
+`application.properties` defaults to a zero-config, file-based **H2** database (`data/shopping_db.mv.db`) — this is what runs when you `bootRun` locally with no extra setup, and it's gitignored so nothing local ever gets committed again.
 
-   ```bash
-   cd frontend
-   npm run build
-   ```
-
-   This outputs into `src/main/resources/static`, which Spring Boot serves directly — so a single `bootRun`/jar serves both the API and the UI in production.
-
-The H2 database is a local file created automatically at `data/shopping_db.mv.db` on first run — no external database to set up. This path is gitignored; each environment gets its own local/persistent volume.
-
-## Setting up Google Sign-In
-
-1. Create an OAuth 2.0 Client ID (Web application) in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
-2. Add your local (`http://localhost:8080`) and deployed origins to **Authorized JavaScript origins**.
-3. Set `GOOGLE_CLIENT_ID` to that client ID. The frontend fetches it at runtime from `/api/config` — no rebuild needed when it changes.
-
-## Setting up the WhatsApp bot
-
-1. Create a [Twilio](https://www.twilio.com/) account and enable the WhatsApp Sandbox (or a production WhatsApp sender).
-2. Point the Twilio WhatsApp webhook (Sandbox settings, or your sender's config) at `https://<your-deployed-host>/whatsapp`.
-3. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_FROM`, and `NOTIFICATION_RECIPIENT`.
+For a real deployment, point `SPRING_DATASOURCE_URL` (plus `SPRING_DATASOURCE_USERNAME`/`SPRING_DATASOURCE_PASSWORD`) at a Postgres instance — these are standard Spring Boot environment variables and take priority over the H2 settings in `application.properties` automatically, no code changes needed. The `org.postgresql:postgresql` driver is already a dependency. This is how the original deployment runs, using a free [Neon](https://neon.tech) Postgres instance on Render.
 
 ## Deployment
 
