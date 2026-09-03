@@ -19,7 +19,7 @@ Send "milk" to a WhatsApp number and it lands on a shared list your household ca
 | Layer      | Tech                                                             |
 |------------|-------------------------------------------------------------------|
 | Backend    | Kotlin, Spring Boot, Spring MVC, Spring Data JPA, Spring Session |
-| Database   | H2 (file-based, embedded — no external DB server needed)        |
+| Database   | Postgres in production; embedded H2 file DB for local dev       |
 | Frontend   | React 18, Vite                                                  |
 | Messaging  | Twilio WhatsApp API                                              |
 | Auth       | Google Sign-In (One Tap / ID token verification)                 |
@@ -29,7 +29,7 @@ Send "milk" to a WhatsApp number and it lands on a shared list your household ca
 
 ```
 WhatsApp ──▶ Twilio ──▶ /whatsapp webhook ──┐
-                                             ├──▶ Spring Boot app ──▶ H2 file DB
+                                             ├──▶ Spring Boot app ──▶ Postgres (prod) / H2 file DB (local)
 Browser ──▶ React PWA ──▶ /api/* ───────────┘         │
                                                         └──▶ voucher provider APIs (balance refresh)
 ```
