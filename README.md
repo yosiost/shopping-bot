@@ -42,6 +42,13 @@ The backend serves the compiled React app as static resources and exposes a JSON
 - Node.js 20+ (for building the frontend)
 - A Twilio account with WhatsApp sending enabled (for the bot)
 - A Google Cloud OAuth 2.0 Client ID (for web login)
+- A Postgres database — only for production/deployment. Local dev needs nothing: it falls back to an embedded H2 file DB. [Neon](https://neon.tech) has a free tier that works well for this.
+
+## Database: H2 locally, Postgres in production
+
+`application.properties` defaults to a zero-config, file-based **H2** database (`data/shopping_db.mv.db`) — this is what runs when you `bootRun` locally with no extra setup, and it's gitignored so nothing local ever gets committed again.
+
+For a real deployment, point `SPRING_DATASOURCE_URL` (plus `SPRING_DATASOURCE_USERNAME`/`SPRING_DATASOURCE_PASSWORD`) at a Postgres instance — these are standard Spring Boot environment variables and take priority over the H2 settings in `application.properties` automatically, no code changes needed. The `org.postgresql:postgresql` driver is already a dependency. This is how the original deployment runs, using a free [Neon](https://neon.tech) Postgres instance on Render.
 
 ## Environment variables
 
@@ -56,8 +63,11 @@ The app is entirely configured via environment variables — **nothing sensitive
 | `TWILIO_AUTH_TOKEN`         | Yes*     | —          | Twilio Auth Token. |
 | `TWILIO_WHATSAPP_FROM`      | Yes*     | —          | Your Twilio WhatsApp sender number, e.g. `+14155238886`. |
 | `NOTIFICATION_RECIPIENT`    | Yes*     | —          | Comma-separated WhatsApp number(s) that receive voucher-expiry reminders. |
-| `DB_USERNAME`               | No       | `sa`       | H2 database username. |
-| `DB_PASSWORD`               | No       | `password` | H2 database password — override this for anything beyond local dev. |
+| `SPRING_DATASOURCE_URL`     | No       | *(unset = use local H2 file)* | JDBC URL of your production Postgres instance, e.g. `jdbc:postgresql://<host>/<db>?sslmode=require`. Set this (and the two below) to use Postgres instead of H2. |
+| `SPRING_DATASOURCE_USERNAME`| No**     | —          | Postgres username (`**` required only if `SPRING_DATASOURCE_URL` is set). |
+| `SPRING_DATASOURCE_PASSWORD`| No**     | —          | Postgres password (`**` required only if `SPRING_DATASOURCE_URL` is set). |
+| `DB_USERNAME`               | No       | `sa`       | Username for the local H2 fallback DB — irrelevant once `SPRING_DATASOURCE_*` is set. |
+| `DB_PASSWORD`               | No       | `password` | Password for the local H2 fallback DB — irrelevant once `SPRING_DATASOURCE_*` is set. |
 | `H2_CONSOLE_ENABLED`        | No       | `false`    | Enable the `/h2-console` DB admin UI. Leave `false` in any public/production deployment. |
 | `H2_CONSOLE_ALLOW_OTHERS`   | No       | `false`    | Allow the H2 console to be reached from outside localhost. Never enable this in production. |
 
@@ -110,7 +120,9 @@ The H2 database is a local file created automatically at `data/shopping_db.mv.db
 
 ## Deployment
 
-The included `Dockerfile` builds the frontend and backend together into a single runnable jar/image — deployable to any container host (Render, Railway, Fly.io, a VPS, etc.):
+The included `Dockerfile` builds the frontend and backend together into a single runnable jar/image — deployable to any container host (Render, Railway, Fly.io, a VPS, etc.). This is how the original instance runs: as a Render web service backed by a free [Neon](https://neon.tech) Postgres database.
+
+Most container hosts (including Render's free/standard tiers) run on an **ephemeral filesystem** — anything written to disk, including an H2 file DB, is wiped on every redeploy or restart. That's why production should point at Postgres via `SPRING_DATASOURCE_URL`/`_USERNAME`/`_PASSWORD` rather than relying on the local H2 file:
 
 ```bash
 docker build -t shopping-bot .
@@ -120,11 +132,15 @@ docker run -p 8080:8080 \
   -e TWILIO_AUTH_TOKEN=... \
   -e TWILIO_WHATSAPP_FROM=... \
   -e NOTIFICATION_RECIPIENT=... \
-  -v shopping-bot-data:/data \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://<host>/<db>?sslmode=require \
+  -e SPRING_DATASOURCE_USERNAME=... \
+  -e SPRING_DATASOURCE_PASSWORD=... \
   shopping-bot
 ```
 
-Mount a persistent volume at the working directory's `data/` path (where the container runs `app.jar`) so the H2 database survives restarts/redeploys. `GET /health` is available for host health checks.
+(If you'd rather run H2 in production anyway — e.g. on a host with a real persistent disk — mount a volume at the working directory's `data/` path instead of setting the `SPRING_DATASOURCE_*` variables.)
+
+`GET /health` is available for host health checks.
 
 **Security note:** keep `H2_CONSOLE_ENABLED` and `H2_CONSOLE_ALLOW_OTHERS` unset (or `false`) on any publicly reachable deployment — enabling either exposes a database admin console over HTTP.
 
