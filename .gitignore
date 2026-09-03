@@ -38,3 +38,13 @@ out/
 
 ### Kotlin ###
 .kotlin
+
+### Local runtime data / secrets ###
+data/
+*.env
+.env
+.env.local
+
+### Frontend ###
+frontend/node_modules/
+frontend/dist/
